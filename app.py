@@ -60,6 +60,7 @@ async def process(
     music: UploadFile = File(...),
     fps: int = Form(25),
 ):
+    result = None
     try:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -83,9 +84,6 @@ async def process(
             ]
 
             result = subprocess.run(cmd, capture_output=True, text=True)
-            
-# Освобождаем память после запуска main.py
-gc.collect()
 
             print("=== main.py finished ===")
             print("returncode:", result.returncode)
@@ -116,3 +114,6 @@ gc.collect()
             f"<pre style='white-space:pre-wrap'>SERVER ERROR:\n{type(e).__name__}: {e}</pre>",
             status_code=500,
         )
+    finally:
+        # Освобождаем память всегда (даже если была ошибка)
+        gc.collect()
