@@ -86,26 +86,26 @@ async def process(
             str(fps),
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
 
-if result.returncode != 0 or not out_otio.exists():
-    err = (result.stderr or "").strip()
-    out = (result.stdout or "").strip()
+    if result.returncode != 0 or not out_otio.exists():
+        err = (result.stderr or "").strip()
+        out = (result.stdout or "").strip()
 
-    # ВАЖНО: чтобы это было видно в Render Logs
-    print("=== main.py failed ===")
-    print("STDERR:\n", err)
-    print("STDOUT:\n", out)
+        # ВАЖНО: чтобы это было видно в Render Logs
+        print("=== main.py failed ===")
+        print("STDERR:\n", err)
+        print("STDOUT:\n", out)
 
-    msg = "\n".join([x for x in [err, out] if x]) or "Unknown error"
-    return HTMLResponse(
-        f"<pre style='white-space:pre-wrap'>Ошибка обработки:\n{msg}</pre>",
-        status_code=500,
+        msg = "\n".join([x for x in [err, out] if x]) or "Unknown error"
+        return HTMLResponse(
+            f"<pre style='white-space:pre-wrap'>Ошибка обработки:\n{msg}</pre>",
+            status_code=500,
+        )
+
+    # Если ошибок нет — отдаем файл
+    return FileResponse(
+        path=str(out_otio),
+        filename="output.otio",
+        media_type="application/octet-stream",
     )
-
-# Если ошибок нет — отдаем файл
-return FileResponse(
-    path=str(out_otio),
-    filename="output.otio",
-    media_type="application/octet-stream",
-)
