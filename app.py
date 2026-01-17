@@ -1,14 +1,29 @@
 import gc
 import os
+import sys
 import subprocess
 import tempfile
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, Response  # <-- ВАЖНО: Response
+from fastapi.responses import HTMLResponse, Response  # Response оставляем
 
 
 app = FastAPI()
+
+
+async def save_uploadfile(upload: UploadFile, dst: Path, chunk_size: int = 1024 * 1024):
+    """
+    Сохраняет UploadFile на диск чанками (по умолчанию 1MB),
+    чтобы не загружать файл целиком в память.
+    """
+    with dst.open("wb") as f:
+        while True:
+            chunk = await upload.read(chunk_size)
+            if not chunk:
+                break
+            f.write(chunk)
+    await upload.close()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -68,14 +83,16 @@ async def process(
             in_mp3 = tmp_path / "music.mp3"
             out_otio = tmp_path / "output.otio"
 
-            in_otio.write_bytes(await timeline.read())
-            in_mp3.write_bytes(await music.read())
+            # ✅ ВАЖНО: сохраняем файлы на диск чанками, без чтения целиком в RAM
+            await save_uploadfile(timeline, in_otio)
+            await save_uploadfile(music, in_mp3)
+            gc.collect()
 
-            print("DEBUG in_otio exists:", in_otio.exists(), in_otio)
-            print("DEBUG in_mp3 exists:", in_mp3.exists(), in_mp3)
+            print("DEBUG in_otio exists:", in_otio.exists(), in_otio, "size:", in_otio.stat().st_size)
+            print("DEBUG in_mp3 exists:", in_mp3.exists(), in_mp3, "size:", in_mp3.stat().st_size)
 
             cmd = [
-                "python",
+                sys.executable,           # ✅ надежнее чем "python" на Render
                 "main.py",
                 "--timeline", str(in_otio),
                 "--music", str(in_mp3),
@@ -84,6 +101,8 @@ async def process(
             ]
 
             result = subprocess.run(cmd, capture_output=True, text=True)
+
+            gc.collect()
 
             print("=== main.py finished ===")
             print("returncode:", result.returncode)
@@ -101,7 +120,7 @@ async def process(
                     status_code=500,
                 )
 
-            # ВАЖНО: читаем файл в память ДО выхода из TemporaryDirectory
+            # OTIO обычно маленький — можно вернуть как bytes (так проще с TemporaryDirectory)
             data = out_otio.read_bytes()
             return Response(
                 content=data,
@@ -115,5 +134,4 @@ async def process(
             status_code=500,
         )
     finally:
-        # Освобождаем память всегда (даже если была ошибка)
         gc.collect()
