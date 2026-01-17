@@ -85,6 +85,8 @@ async def process(
             "--fps",
             str(fps),
         ]
+print("DEBUG in_otio exists:", in_otio.exists(), in_otio)
+print("DEBUG in_mp3 exists:", in_mp3.exists(), in_mp3)
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
