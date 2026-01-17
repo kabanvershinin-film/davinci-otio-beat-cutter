@@ -97,20 +97,15 @@ if result.returncode != 0 or not out_otio.exists():
     print("STDERR:\n", err)
     print("STDOUT:\n", out)
 
-    # И чтобы это было видно тебе в браузере
-    msg = "\n".join([x for x in [err, out] if x])
-    if not msg:
-        msg = "Unknown error: main.py returned non-zero exit code"
-
+    msg = "\n".join([x for x in [err, out] if x]) or "Unknown error"
     return HTMLResponse(
         f"<pre style='white-space:pre-wrap'>Ошибка обработки:\n{msg}</pre>",
         status_code=500,
     )
 
-
-        # Отдаем файл на скачивание
-        return FileResponse(
-            path=str(out_otio),
-            filename="output.otio",
-            media_type="application/octet-stream",
-        )
+# Если ошибок нет — отдаем файл
+return FileResponse(
+    path=str(out_otio),
+    filename="output.otio",
+    media_type="application/octet-stream",
+)
