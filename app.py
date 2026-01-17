@@ -88,7 +88,8 @@ async def process(
 print("DEBUG in_otio exists:", in_otio.exists(), in_otio)
 print("DEBUG in_mp3 exists:", in_mp3.exists(), in_mp3)
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+result = subprocess.run(cmd, capture_output=True, text=True)
+
 
     if result.returncode != 0 or not out_otio.exists():
         err = (result.stderr or "").strip()
