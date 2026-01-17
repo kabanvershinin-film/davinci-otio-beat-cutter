@@ -1,3 +1,15 @@
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+
+app = FastAPI()
+
+@app.get("/", response_class=HTMLResponse)
+def home():
+    return """
+    <h1>DaVinci OTIO Beat Cutter</h1>
+    <p>Server is running ✅</p>
+    """
+
 import argparse
 from pathlib import Path
 import numpy as np
