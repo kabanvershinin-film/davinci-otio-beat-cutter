@@ -83,6 +83,9 @@ async def process(
             ]
 
             result = subprocess.run(cmd, capture_output=True, text=True)
+            
+# Освобождаем память после запуска main.py
+gc.collect()
 
             print("=== main.py finished ===")
             print("returncode:", result.returncode)
