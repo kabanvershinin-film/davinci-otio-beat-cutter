@@ -1,3 +1,6 @@
+import sys
+print("PYTHON VERSION:", sys.version)
+
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
