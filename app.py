@@ -71,8 +71,6 @@ async def process(
         in_mp3.write_bytes(await music.read())
 
         # Запускаем твой CLI-скрипт main.py
-        # Он у тебя в README уже описан примерно так:
-        # python main.py --timeline input.otio --music track.mp3 --out output.otio --fps 25
         cmd = [
             "python",
             "main.py",
@@ -85,28 +83,28 @@ async def process(
             "--fps",
             str(fps),
         ]
-print("DEBUG in_otio exists:", in_otio.exists(), in_otio)
-print("DEBUG in_mp3 exists:", in_mp3.exists(), in_mp3)
 
-result = subprocess.run(cmd, capture_output=True, text=True)
+        print("DEBUG in_otio exists:", in_otio.exists(), in_otio)
+        print("DEBUG in_mp3 exists:", in_mp3.exists(), in_mp3)
 
-if result.returncode != 0 or not out_otio.exists():
-    err = (result.stderr or "").strip()
-    out = (result.stdout or "").strip()
+        result = subprocess.run(cmd, capture_output=True, text=True)
 
-    print("=== main.py failed ===")
-    print("STDERR:\n", err)
-    print("STDOUT:\n", out)
+        if result.returncode != 0 or not out_otio.exists():
+            err = (result.stderr or "").strip()
+            out = (result.stdout or "").strip()
 
-    msg = "\n".join([x for x in [err, out] if x]) or "Unknown error"
-    return HTMLResponse(
-        f"<pre style='white-space:pre-wrap'>Ошибка обработки:\n{msg}</pre>",
-        status_code=500,
-    )
+            print("=== main.py failed ===")
+            print("STDERR:\n", err)
+            print("STDOUT:\n", out)
 
-return FileResponse(
-    path=str(out_otio),
-    filename="output.otio",
-    media_type="application/octet-stream",
-)
+            msg = "\n".join([x for x in [err, out] if x]) or "Unknown error"
+            return HTMLResponse(
+                f"<pre style='white-space:pre-wrap'>Ошибка обработки:\n{msg}</pre>",
+                status_code=500,
+            )
 
+        return FileResponse(
+            path=str(out_otio),
+            filename="output.otio",
+            media_type="application/octet-stream",
+        )
