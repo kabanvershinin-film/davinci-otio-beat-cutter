@@ -14,6 +14,13 @@ import argparse
 from pathlib import Path
 import numpy as np
 import librosa
+# --- scipy/librosa compatibility patch ---
+import scipy.signal as _sig
+if not hasattr(_sig, "hann"):
+    from scipy.signal.windows import hann as _hann
+    _sig.hann = _hann
+# ---------------------------------------
+
 import opentimelineio as otio
 
 
