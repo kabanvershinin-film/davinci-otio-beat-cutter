@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, Response  # <-- ВАЖНО: Response
 
 
 app = FastAPI()
@@ -75,14 +75,10 @@ async def process(
             cmd = [
                 "python",
                 "main.py",
-                "--timeline",
-                str(in_otio),
-                "--music",
-                str(in_mp3),
-                "--out",
-                str(out_otio),
-                "--fps",
-                str(fps),
+                "--timeline", str(in_otio),
+                "--music", str(in_mp3),
+                "--out", str(out_otio),
+                "--fps", str(fps),
             ]
 
             result = subprocess.run(cmd, capture_output=True, text=True)
@@ -103,10 +99,12 @@ async def process(
                     status_code=500,
                 )
 
-            return FileResponse(
-                path=str(out_otio),
-                filename="output.otio",
+            # ВАЖНО: читаем файл в память ДО выхода из TemporaryDirectory
+            data = out_otio.read_bytes()
+            return Response(
+                content=data,
                 media_type="application/octet-stream",
+                headers={"Content-Disposition": 'attachment; filename="output.otio"'},
             )
 
     except Exception as e:
