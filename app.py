@@ -88,13 +88,25 @@ async def process(
 
         result = subprocess.run(cmd, capture_output=True, text=True)
 
-        if result.returncode != 0 or not out_otio.exists():
-            # Покажем ошибку скрипта прямо в браузере
-            err = (result.stderr or "") + "\n" + (result.stdout or "")
-            return HTMLResponse(
-                f"<pre style='white-space:pre-wrap'>Ошибка обработки:\n{err}</pre>",
-                status_code=500,
-            )
+if result.returncode != 0 or not out_otio.exists():
+    err = (result.stderr or "").strip()
+    out = (result.stdout or "").strip()
+
+    # ВАЖНО: чтобы это было видно в Render Logs
+    print("=== main.py failed ===")
+    print("STDERR:\n", err)
+    print("STDOUT:\n", out)
+
+    # И чтобы это было видно тебе в браузере
+    msg = "\n".join([x for x in [err, out] if x])
+    if not msg:
+        msg = "Unknown error: main.py returned non-zero exit code"
+
+    return HTMLResponse(
+        f"<pre style='white-space:pre-wrap'>Ошибка обработки:\n{msg}</pre>",
+        status_code=500,
+    )
+
 
         # Отдаем файл на скачивание
         return FileResponse(
