@@ -59,52 +59,58 @@ async def process(
     music: UploadFile = File(...),
     fps: int = Form(25),
 ):
-    # Временная папка на сервере
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        in_otio = tmp_path / "input.otio"
-        in_mp3 = tmp_path / "music.mp3"
-        out_otio = tmp_path / "output.otio"
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            in_otio = tmp_path / "input.otio"
+            in_mp3 = tmp_path / "music.mp3"
+            out_otio = tmp_path / "output.otio"
 
-        # Сохраняем загрузки
-        in_otio.write_bytes(await timeline.read())
-        in_mp3.write_bytes(await music.read())
+            in_otio.write_bytes(await timeline.read())
+            in_mp3.write_bytes(await music.read())
 
-        # Запускаем твой CLI-скрипт main.py
-        cmd = [
-            "python",
-            "main.py",
-            "--timeline",
-            str(in_otio),
-            "--music",
-            str(in_mp3),
-            "--out",
-            str(out_otio),
-            "--fps",
-            str(fps),
-        ]
+            print("DEBUG in_otio exists:", in_otio.exists(), in_otio)
+            print("DEBUG in_mp3 exists:", in_mp3.exists(), in_mp3)
 
-        print("DEBUG in_otio exists:", in_otio.exists(), in_otio)
-        print("DEBUG in_mp3 exists:", in_mp3.exists(), in_mp3)
+            cmd = [
+                "python",
+                "main.py",
+                "--timeline",
+                str(in_otio),
+                "--music",
+                str(in_mp3),
+                "--out",
+                str(out_otio),
+                "--fps",
+                str(fps),
+            ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True)
 
-        if result.returncode != 0 or not out_otio.exists():
-            err = (result.stderr or "").strip()
-            out = (result.stdout or "").strip()
+            print("=== main.py finished ===")
+            print("returncode:", result.returncode)
+            print("STDERR:\n", (result.stderr or "").strip())
+            print("STDOUT:\n", (result.stdout or "").strip())
+            print("DEBUG out_otio exists:", out_otio.exists(), out_otio)
 
-            print("=== main.py failed ===")
-            print("STDERR:\n", err)
-            print("STDOUT:\n", out)
+            if result.returncode != 0 or not out_otio.exists():
+                msg = "\n".join([
+                    (result.stderr or "").strip(),
+                    (result.stdout or "").strip(),
+                ]) or "Unknown error"
+                return HTMLResponse(
+                    f"<pre style='white-space:pre-wrap'>Ошибка обработки:\n{msg}</pre>",
+                    status_code=500,
+                )
 
-            msg = "\n".join([x for x in [err, out] if x]) or "Unknown error"
-            return HTMLResponse(
-                f"<pre style='white-space:pre-wrap'>Ошибка обработки:\n{msg}</pre>",
-                status_code=500,
+            return FileResponse(
+                path=str(out_otio),
+                filename="output.otio",
+                media_type="application/octet-stream",
             )
 
-        return FileResponse(
-            path=str(out_otio),
-            filename="output.otio",
-            media_type="application/octet-stream",
+    except Exception as e:
+        return HTMLResponse(
+            f"<pre style='white-space:pre-wrap'>SERVER ERROR:\n{type(e).__name__}: {e}</pre>",
+            status_code=500,
         )
