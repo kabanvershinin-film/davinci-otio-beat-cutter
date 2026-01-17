@@ -152,49 +152,46 @@ def rebuild_timeline(input_otio: str, music_mp3: str, output_otio: str,
     music_clip.source_range = make_timerange(0.0, music_duration, fps)
     out_audio.append(music_clip)
 
-    # Нарезка видео
-    src_i = 0
-    src_pos_sec = 0.0  # позиция внутри текущего source_clip (относительно его source_range start)
+        # Нарезка видео (каждый исходный клип используется ТОЛЬКО 1 раз)
+    src_i = 0  # индекс исходного клипа
 
     for dur in segment_durations:
         if src_i >= len(source_clips):
             break
 
-        remaining = dur
-        # Один сегмент может "съесть" несколько исходных клипов, если они короткие
-        while remaining > 1e-6:
-            if src_i >= len(source_clips):
-                remaining = 0
-                break
+        remaining = float(dur)
 
+        # Этот сегмент может заполниться несколькими клипами (если они короткие),
+        # но КАЖДЫЙ клип берётся только один раз: взяли кусок -> остаток клипа выкинули -> следующий клип.
+        while remaining > 1e-6 and src_i < len(source_clips):
             src_clip = source_clips[src_i]
+            src_i += 1  # ВАЖНО: сразу двигаемся дальше, клип больше не используем
+
             sr = get_source_range_or_default(src_clip, fps)
             sr_start = sr.start_time.to_seconds()
             sr_dur = sr.duration.to_seconds()
 
-            available = sr_dur - src_pos_sec
-            if available <= 1e-6:
-                src_i += 1
-                src_pos_sec = 0.0
+            if sr_dur <= 1e-6:
                 continue
 
-            take = min(available, remaining)
+            take = min(sr_dur, remaining)
 
             new_clip = otio.schema.Clip(
                 name=src_clip.name,
                 media_reference=src_clip.media_reference
             )
-            # берём кусок из исходника
+
+            # Берём ТОЛЬКО начало клипа (его source_range start) и длительность take.
+            # Оставшуюся часть клипа намеренно игнорируем.
             new_clip.source_range = make_timerange(
-                start_sec=sr_start + src_pos_sec,
+                start_sec=sr_start,
                 dur_sec=take,
                 rate=fps
             )
 
             out_video.append(new_clip)
-
-            src_pos_sec += take
             remaining -= take
+
 
             # если текущий клип закончился — идём к следующему
             if src_pos_sec >= sr_dur - 1e-6:
