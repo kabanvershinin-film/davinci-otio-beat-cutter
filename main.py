@@ -230,3 +230,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+# 🔥 освобождаем память
+del timeline, out_tl, out_tracks, out_video, out_audio
+gc.collect()
