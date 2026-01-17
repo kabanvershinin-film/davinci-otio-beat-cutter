@@ -1,8 +1,10 @@
 fastapi
-uvicorn[standard]
+uvicorn
+python-multipart
+
 opentimelineio==0.16.0
 librosa==0.10.0
+numpy==1.23.5
+scipy==1.10.1
 soundfile==0.12.1
-numpy>=1.23
-python-multipart
-setuptools
+setuptools<81
