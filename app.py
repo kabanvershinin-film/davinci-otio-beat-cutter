@@ -264,6 +264,7 @@ async def process(
                 "--music", str(in_mp3),
                 "--out", str(out_otio),
                 "--fps", str(fps),
+                "--grid_offset", "0.02",
             ]
 
             # ✅ передаём settings только если они есть
