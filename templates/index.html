@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>DaVinci OTIO Beat Cutter</title>
+</head>
+<body>
+
+<h2>DaVinci OTIO Beat Cutter</h2>
+
+<form method="POST" action="/process" enctype="multipart/form-data">
+
+  <div>
+    <label>OTIO файл</label><br>
+    <input type="file" name="timeline" accept=".otio" required>
+  </div>
+
+  <div>
+    <label>Музыка (MP3 / WAV)</label><br>
+    <input type="file" name="music" accept=".mp3,.wav" required>
+  </div>
+
+  <div>
+    <label>FPS</label><br>
+    <input type="number" name="fps" value="25">
+  </div>
+
+  <hr>
+
+  <h3>Автомонтаж под музыку</h3>
+
+  <label>
+    <input type="checkbox" id="ae_enabled" checked>
+    Включить
+  </label>
+
+  <div>
+    Длина клипа (сек):<br>
+    min <input type="number" id="cd_min" value="0.5" step="0.1">
+    max <input type="number" id="cd_max" value="1.9" step="0.1">
+  </div>
+
+  <div>
+    Shuffle (%):
+    <input type="number" id="shuffle" value="0" min="0" max="100">
+  </div>
+
+  <hr>
+
+  <h3>Ретайм</h3>
+
+  <label>
+    <input type="checkbox" id="rt_enabled">
+    Включить ретайм
+  </label>
+
+  <div>
+    Вероятность ретайма (%):
+    <input type="number" id="rt_prob" value="0" min="0" max="100">
+  </div>
+
+  <!-- СЮДА ПОЛОЖИМ JSON -->
+  <input type="hidden" name="settings" id="settings_json">
+
+  <br><br>
+  <button type="submit">Смонтировать и скачать OTIO</button>
+
+</form>
+
+<script>
+document.querySelector("form").addEventListener("submit", () => {
+  const settings = {
+    auto_edit_to_music_1: {
+      f_enabled: document.getElementById("ae_enabled").checked,
+      clip_duration: [
+        parseFloat(cd_min.value),
+        parseFloat(cd_max.value)
+      ],
+      shuffle: parseInt(shuffle.value)
+    },
+    retime_simple: {
+      f_enabled: document.getElementById("rt_enabled").checked,
+      retime_prob: parseInt(rt_prob.value)
+    }
+  };
+
+  document.getElementById("settings_json").value =
+    JSON.stringify(settings);
+});
+</script>
+
+</body>
+</html>
