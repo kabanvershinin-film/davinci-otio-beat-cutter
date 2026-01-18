@@ -62,6 +62,7 @@ def _filter_beats_min_gap(beat_times, min_cut):
 def build_cut_times_by_beats(beat_times, music_duration, min_cut, beat_step=1):
     """
     Режем строго по битам, но равномерно: каждый N-й бит.
+    (старый режим, оставляем)
     """
     beat_step = max(1, int(beat_step))
     filtered = _filter_beats_min_gap(beat_times, min_cut)
@@ -85,35 +86,83 @@ def build_cut_times_by_beats(beat_times, music_duration, min_cut, beat_step=1):
     return cuts
 
 
-def build_cut_times_variable(beat_times, music_duration, min_cut, beat_weights=(55, 30, 12, 3), seed=None):
+# ---------- NEW: tempo grid (чтобы НЕ плывёт) ----------
+def make_tempo_grid(beat_times, music_duration, tempo, grid_offset=0.0):
     """
-    ✅ ТО ЧТО ТЕБЕ НУЖНО:
-    режем по битам, но шаг меняется: иногда 1 бит, иногда 2-4 бита (по весам).
-    По умолчанию: 1 бит 55%, 2 бита 30%, 3 бита 12%, 4 бита 3%
+    Строим ровную сетку по tempo (BPM) и якорим от первого бита.
+    Это сильно стабилизирует попадание (в отличие от "сырого" beat_times).
+    grid_offset — мелкая подстройка сетки (+/- секунды), если надо (1-2 кадра).
+    """
+    beat_times = [float(t) for t in beat_times if float(t) > 0]
+    beat_times.sort()
+
+    if tempo <= 0 or len(beat_times) < 1:
+        # fallback: что есть
+        grid = [0.0] + beat_times + [float(music_duration)]
+        grid = sorted(set(np.round(grid, 4).tolist()))
+        if grid[0] != 0.0:
+            grid.insert(0, 0.0)
+        if grid[-1] < music_duration - 0.01:
+            grid.append(float(music_duration))
+        return grid
+
+    spb = 60.0 / float(tempo)  # seconds per beat
+    t0 = beat_times[0] + float(grid_offset)
+
+    grid = [0.0]
+    t = t0
+    # строим сетку до конца трека
+    while t < music_duration - 0.01:
+        if t > 0:
+            grid.append(float(t))
+        t += spb
+    grid.append(float(music_duration))
+
+    grid = sorted(set(np.round(grid, 4).tolist()))
+    if grid[0] != 0.0:
+        grid.insert(0, 0.0)
+    if grid[-1] < music_duration - 0.01:
+        grid.append(float(music_duration))
+    return grid
+
+
+def build_cuts_from_grid(grid_times, min_cut, beat_weights=(55, 30, 12, 3), seed=None):
+    """
+    Режем по ровной tempo-сетке и выбираем шаг 1..4 бита по весам.
+    Это даёт разную длину клипов и сохраняет попадание в темп.
     """
     rng = np.random.default_rng(seed)
-    filtered = _filter_beats_min_gap(beat_times, min_cut)
 
     steps = np.array([1, 2, 3, 4], dtype=int)
     w = np.array(beat_weights, dtype=float)
     w = w / w.sum()
 
+    # grid_times содержит 0 и конец
+    beats = [float(t) for t in grid_times[1:-1]]  # внутренние биты
+    end = float(grid_times[-1])
+
     cuts = [0.0]
+    last = 0.0
     i = 0
-    while i < len(filtered):
-        cuts.append(float(filtered[i]))
+
+    while i < len(beats):
+        t = beats[i]
+        if t - last >= float(min_cut):
+            cuts.append(float(t))
+            last = float(t)
         step = int(rng.choice(steps, p=w))
         i += step
 
-    if music_duration > cuts[-1] + 0.01:
-        cuts.append(float(music_duration))
+    if end > cuts[-1] + 0.01:
+        cuts.append(end)
 
     cuts = sorted(set(np.round(cuts, 4).tolist()))
     if cuts[0] != 0.0:
         cuts.insert(0, 0.0)
-    if cuts[-1] < music_duration - 0.01:
-        cuts.append(float(music_duration))
+    if cuts[-1] < end - 0.01:
+        cuts.append(end)
     return cuts
+# ------------------------------------------------------
 
 
 def find_first_video_track(timeline: otio.schema.Timeline) -> otio.schema.Track:
@@ -163,7 +212,8 @@ def rebuild_timeline(
     beat_step: int,
     mode: str,
     beat_weights: tuple[int, int, int, int],
-    seed: int | None
+    seed: int | None,
+    grid_offset: float
 ):
     timeline = otio.adapters.read_from_file(input_otio)
     if not isinstance(timeline, otio.schema.Timeline):
@@ -181,9 +231,11 @@ def rebuild_timeline(
         cuts = build_cut_times_by_beats(
             beat_times, music_duration, min_cut=min_cut, beat_step=beat_step
         )
-    else:  # mode == "var"
-        cuts = build_cut_times_variable(
-            beat_times, music_duration, min_cut=min_cut, beat_weights=beat_weights, seed=seed
+    else:
+        # ✅ новый правильный var: сначала строим tempo grid, потом режем по ней
+        grid = make_tempo_grid(beat_times, music_duration, tempo, grid_offset=grid_offset)
+        cuts = build_cuts_from_grid(
+            grid, min_cut=min_cut, beat_weights=beat_weights, seed=seed
         )
 
     segments = [(cuts[i], cuts[i + 1]) for i in range(len(cuts) - 1)]
@@ -257,7 +309,6 @@ def _load_settings(path: str | None) -> dict:
 def _apply_settings_to_args(settings: dict, args: argparse.Namespace) -> None:
     ae = settings.get("auto_edit_to_music_1", {}) if isinstance(settings, dict) else {}
 
-    # min_cut берём из clip_duration[0] (минимальный интервал)
     clip_duration = ae.get("clip_duration")
     if isinstance(clip_duration, (list, tuple)) and len(clip_duration) == 2:
         try:
@@ -292,7 +343,6 @@ def _apply_settings_to_args(settings: dict, args: argparse.Namespace) -> None:
         except Exception:
             pass
 
-    # если захочешь прокидывать веса из settings:
     if "beat_weights" in ae and isinstance(ae["beat_weights"], (list, tuple)) and len(ae["beat_weights"]) == 4:
         try:
             args.beat_weights = tuple(int(x) for x in ae["beat_weights"])
@@ -302,6 +352,12 @@ def _apply_settings_to_args(settings: dict, args: argparse.Namespace) -> None:
     if "mode" in ae:
         if str(ae["mode"]).lower() in ("fixed", "var"):
             args.mode = str(ae["mode"]).lower()
+
+    if "grid_offset" in ae:
+        try:
+            args.grid_offset = float(ae["grid_offset"])
+        except Exception:
+            pass
 
 
 def _parse_weights(s: str):
@@ -324,17 +380,20 @@ def main():
     ap.add_argument("--min_cut", type=float, default=0.18, help="min interval between cuts (sec)")
     ap.add_argument("--max_cut", type=float, default=1.20, help="(legacy) not used")
 
-    ap.add_argument("--beat_offset", type=float, default=0.0, help="shift beats in seconds (+/-)")
+    ap.add_argument("--beat_offset", type=float, default=0.0, help="shift beat detection in seconds (+/-)")
     ap.add_argument("--sr", type=int, default=11025, help="audio sample rate for analysis (lower = less RAM)")
     ap.add_argument("--analyze_seconds", type=float, default=120.0, help="how many seconds of audio to analyze (RAM saver)")
 
-    # fixed: равномерно каждый N-й бит
-    ap.add_argument("--beat_step", type=int, default=1, help="fixed mode: 1/2/4...")
+    # fixed mode
+    ap.add_argument("--beat_step", type=int, default=1, help="fixed mode: cut each N-th beat")
 
-    # ✅ var: переменная длина (то, что ты хочешь)
+    # var mode
     ap.add_argument("--mode", default="var", choices=["fixed", "var"], help="fixed=each N-th beat, var=variable steps")
     ap.add_argument("--beat_weights", default="55,30,12,3", help="var mode weights for steps 1..4 beats")
-    ap.add_argument("--seed", type=int, default=None, help="var mode: set seed for repeatable results")
+    ap.add_argument("--seed", type=int, default=7, help="var mode: set seed for repeatable results")
+
+    # ✅ NEW: offset for tempo grid (подгонка на 1–2 кадра)
+    ap.add_argument("--grid_offset", type=float, default=0.0, help="var mode: shift tempo grid in seconds (+/-)")
 
     ap.add_argument("--settings", default=None, help="path to settings.json (optional)")
     args = ap.parse_args()
@@ -367,11 +426,12 @@ def main():
         mode=args.mode,
         beat_weights=beat_weights,
         seed=args.seed,
+        grid_offset=args.grid_offset,
     )
 
     print(f"Done. Saved: {args.out}")
     print(f"Audio duration: {dur:.2f}s | Segments: {n_segments} | Tempo≈{tempo:.2f} BPM")
-    print(f"Mode: {args.mode} | min_cut={args.min_cut:.2f}s | weights={beat_weights} | seed={args.seed}")
+    print(f"Mode: {args.mode} | min_cut={args.min_cut:.2f}s | weights={beat_weights} | seed={args.seed} | grid_offset={args.grid_offset}")
 
 
 if __name__ == "__main__":
