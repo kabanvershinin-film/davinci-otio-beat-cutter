@@ -44,42 +44,75 @@ def detect_beats(
     return beat_times, float(music_duration), float(tempo)
 
 
-def build_cut_times_by_beats(beat_times, music_duration, min_cut, beat_step=1):
-    """
-    Режем строго по битам (это то, что тебе нужно, чтобы клипы 'легли' на музыку).
-    min_cut: убирает слишком частые биты (иначе будет мельтешить).
-    beat_step: 1 = каждый бит, 2 = каждый второй, 4 = каждый четвертый.
-    """
-    beat_step = max(1, int(beat_step))
-
-    cuts = [0.0]
+def _filter_beats_min_gap(beat_times, min_cut):
+    """Убираем слишком частые биты (чтобы не мельтешило)."""
+    filtered = []
     last = 0.0
-    kept = 0
-
     for t in beat_times:
         t = float(t)
         if t <= last:
             continue
         if t - last < float(min_cut):
             continue
+        filtered.append(t)
+        last = t
+    return filtered
 
+
+def build_cut_times_by_beats(beat_times, music_duration, min_cut, beat_step=1):
+    """
+    Режем строго по битам, но равномерно: каждый N-й бит.
+    """
+    beat_step = max(1, int(beat_step))
+    filtered = _filter_beats_min_gap(beat_times, min_cut)
+
+    cuts = [0.0]
+    kept = 0
+    for t in filtered:
         kept += 1
         if kept % beat_step != 0:
             continue
-
-        cuts.append(t)
-        last = t
+        cuts.append(float(t))
 
     if music_duration > cuts[-1] + 0.01:
         cuts.append(float(music_duration))
 
-    # уникальность + сортировка
     cuts = sorted(set(np.round(cuts, 4).tolist()))
     if cuts[0] != 0.0:
         cuts.insert(0, 0.0)
     if cuts[-1] < music_duration - 0.01:
         cuts.append(float(music_duration))
+    return cuts
 
+
+def build_cut_times_variable(beat_times, music_duration, min_cut, beat_weights=(55, 30, 12, 3), seed=None):
+    """
+    ✅ ТО ЧТО ТЕБЕ НУЖНО:
+    режем по битам, но шаг меняется: иногда 1 бит, иногда 2-4 бита (по весам).
+    По умолчанию: 1 бит 55%, 2 бита 30%, 3 бита 12%, 4 бита 3%
+    """
+    rng = np.random.default_rng(seed)
+    filtered = _filter_beats_min_gap(beat_times, min_cut)
+
+    steps = np.array([1, 2, 3, 4], dtype=int)
+    w = np.array(beat_weights, dtype=float)
+    w = w / w.sum()
+
+    cuts = [0.0]
+    i = 0
+    while i < len(filtered):
+        cuts.append(float(filtered[i]))
+        step = int(rng.choice(steps, p=w))
+        i += step
+
+    if music_duration > cuts[-1] + 0.01:
+        cuts.append(float(music_duration))
+
+    cuts = sorted(set(np.round(cuts, 4).tolist()))
+    if cuts[0] != 0.0:
+        cuts.insert(0, 0.0)
+    if cuts[-1] < music_duration - 0.01:
+        cuts.append(float(music_duration))
     return cuts
 
 
@@ -123,11 +156,14 @@ def rebuild_timeline(
     output_otio: str,
     fps: float,
     min_cut: float,
-    max_cut: float,      # оставляем в сигнатуре для совместимости
+    max_cut: float,      # legacy
     beat_offset: float,
     sr: int,
     analyze_seconds: float,
-    beat_step: int
+    beat_step: int,
+    mode: str,
+    beat_weights: tuple[int, int, int, int],
+    seed: int | None
 ):
     timeline = otio.adapters.read_from_file(input_otio)
     if not isinstance(timeline, otio.schema.Timeline):
@@ -140,13 +176,15 @@ def rebuild_timeline(
         music_mp3, sr=sr, analyze_seconds=analyze_seconds, start_offset=beat_offset
     )
 
-    # ✅ ВАЖНО: теперь режем строго по битам
-    cuts = build_cut_times_by_beats(
-        beat_times,
-        music_duration,
-        min_cut=min_cut,
-        beat_step=beat_step
-    )
+    # ✅ выбор режима
+    if mode == "fixed":
+        cuts = build_cut_times_by_beats(
+            beat_times, music_duration, min_cut=min_cut, beat_step=beat_step
+        )
+    else:  # mode == "var"
+        cuts = build_cut_times_variable(
+            beat_times, music_duration, min_cut=min_cut, beat_weights=beat_weights, seed=seed
+        )
 
     segments = [(cuts[i], cuts[i + 1]) for i in range(len(cuts) - 1)]
     segment_durations = [b - a for a, b in segments]
@@ -219,19 +257,17 @@ def _load_settings(path: str | None) -> dict:
 def _apply_settings_to_args(settings: dict, args: argparse.Namespace) -> None:
     ae = settings.get("auto_edit_to_music_1", {}) if isinstance(settings, dict) else {}
 
-    # clip_duration -> min_cut (а max_cut оставим как есть, он больше не правит длины)
+    # min_cut берём из clip_duration[0] (минимальный интервал)
     clip_duration = ae.get("clip_duration")
     if isinstance(clip_duration, (list, tuple)) and len(clip_duration) == 2:
         try:
             mn = float(clip_duration[0])
             mx = float(clip_duration[1])
-            # min_cut = минимальный шаг, чтобы не резало слишком часто
             if 0.05 <= mn <= mx <= 30.0:
                 args.min_cut = mn
         except Exception:
             pass
 
-    # beat_step (если захочешь добавить в settings — поддержим)
     if "beat_step" in ae:
         try:
             args.beat_step = int(ae["beat_step"])
@@ -256,6 +292,27 @@ def _apply_settings_to_args(settings: dict, args: argparse.Namespace) -> None:
         except Exception:
             pass
 
+    # если захочешь прокидывать веса из settings:
+    if "beat_weights" in ae and isinstance(ae["beat_weights"], (list, tuple)) and len(ae["beat_weights"]) == 4:
+        try:
+            args.beat_weights = tuple(int(x) for x in ae["beat_weights"])
+        except Exception:
+            pass
+
+    if "mode" in ae:
+        if str(ae["mode"]).lower() in ("fixed", "var"):
+            args.mode = str(ae["mode"]).lower()
+
+
+def _parse_weights(s: str):
+    parts = [p.strip() for p in s.split(",") if p.strip()]
+    if len(parts) != 4:
+        raise ValueError("beat_weights должен быть в формате: a,b,c,d (4 числа)")
+    w = tuple(int(x) for x in parts)
+    if any(x < 0 for x in w) or sum(w) == 0:
+        raise ValueError("beat_weights: числа должны быть >=0 и сумма > 0")
+    return w
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -264,16 +321,20 @@ def main():
     ap.add_argument("--out", default="output.otio", help="output .otio")
     ap.add_argument("--fps", type=float, default=25.0, help="timeline fps (default: 25)")
 
-    # раньше это управляло длиной сегментов; теперь min_cut = фильтр "слишком часто"
     ap.add_argument("--min_cut", type=float, default=0.18, help="min interval between cuts (sec)")
-    ap.add_argument("--max_cut", type=float, default=1.20, help="(legacy) not used in beat-cut mode")
+    ap.add_argument("--max_cut", type=float, default=1.20, help="(legacy) not used")
 
     ap.add_argument("--beat_offset", type=float, default=0.0, help="shift beats in seconds (+/-)")
     ap.add_argument("--sr", type=int, default=11025, help="audio sample rate for analysis (lower = less RAM)")
     ap.add_argument("--analyze_seconds", type=float, default=120.0, help="how many seconds of audio to analyze (RAM saver)")
 
-    # ✅ новое: резать каждый N-й бит
-    ap.add_argument("--beat_step", type=int, default=1, help="1=every beat, 2=every 2nd beat, 4=every 4th beat")
+    # fixed: равномерно каждый N-й бит
+    ap.add_argument("--beat_step", type=int, default=1, help="fixed mode: 1/2/4...")
+
+    # ✅ var: переменная длина (то, что ты хочешь)
+    ap.add_argument("--mode", default="var", choices=["fixed", "var"], help="fixed=each N-th beat, var=variable steps")
+    ap.add_argument("--beat_weights", default="55,30,12,3", help="var mode weights for steps 1..4 beats")
+    ap.add_argument("--seed", type=int, default=None, help="var mode: set seed for repeatable results")
 
     ap.add_argument("--settings", default=None, help="path to settings.json (optional)")
     args = ap.parse_args()
@@ -290,6 +351,8 @@ def main():
     if args.beat_step <= 0:
         args.beat_step = 1
 
+    beat_weights = _parse_weights(args.beat_weights)
+
     tempo, n_segments, dur = rebuild_timeline(
         input_otio=args.timeline,
         music_mp3=args.music,
@@ -301,11 +364,14 @@ def main():
         sr=args.sr,
         analyze_seconds=args.analyze_seconds,
         beat_step=args.beat_step,
+        mode=args.mode,
+        beat_weights=beat_weights,
+        seed=args.seed,
     )
 
     print(f"Done. Saved: {args.out}")
     print(f"Audio duration: {dur:.2f}s | Segments: {n_segments} | Tempo≈{tempo:.2f} BPM")
-    print(f"Beat mode: step={args.beat_step} | min_cut={args.min_cut:.2f}s")
+    print(f"Mode: {args.mode} | min_cut={args.min_cut:.2f}s | weights={beat_weights} | seed={args.seed}")
 
 
 if __name__ == "__main__":
