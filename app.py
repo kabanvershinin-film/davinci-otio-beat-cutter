@@ -66,6 +66,19 @@ def home():
 
       <div class="row">
         <div>
+          <label>Сдвиг бита (ms)</label>
+          <input type="range" id="beat_offset_ms" min="-200" max="200" step="1" value="0" />
+          <div class="small">Текущее: <span id="beat_offset_ms_v">0</span></div>
+        </div>
+        <div>
+          <label>Микро-сдвиг сетки (ms)</label>
+          <input type="range" id="grid_offset_ms" min="-80" max="80" step="1" value="0" />
+          <div class="small">Текущее: <span id="grid_offset_ms_v">0</span></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
           <label>Длина клипа MIN (сек)</label>
           <input type="range" id="cd_min" min="0.2" max="5" step="0.1" value="0.5" />
           <div class="small">Текущее: <span id="cd_min_v">0.5</span></div>
@@ -178,7 +191,7 @@ def home():
     upd();
   }
 
-  ["cd_min","cd_max","ct_min","ct_max","shuffle","shuffle_long","rt_prob","rt_min","rt_max"].forEach(id => {
+  ["beat_offset_ms","grid_offset_ms","cd_min","cd_max","ct_min","ct_max","shuffle","shuffle_long","rt_prob","rt_min","rt_max"].forEach(id => {
     bindRange(id, id + "_v");
   });
 
@@ -196,6 +209,8 @@ def home():
     const settings = {
       auto_edit_to_music_1: {
         f_enabled: ae_enabled.checked,
+        beat_offset: parseFloat(beat_offset_ms.value) / 1000,
+        grid_offset: parseFloat(grid_offset_ms.value) / 1000,
         clip_duration: [cdMin, cdMax],
         clip_transient: [ctMin, ctMax],
         audio_lib: audio_lib.value,
@@ -264,7 +279,6 @@ async def process(
                 "--music", str(in_mp3),
                 "--out", str(out_otio),
                 "--fps", str(fps),
-                "--grid_offset", "0.02",
             ]
 
             # ✅ передаём settings только если они есть
