@@ -2,6 +2,7 @@ import argparse
 import gc
 import json
 from pathlib import Path
+import random
 
 import numpy as np
 import librosa
@@ -213,7 +214,14 @@ def rebuild_timeline(
     mode: str,
     beat_weights: tuple[int, int, int, int],
     seed: int | None,
-    grid_offset: float
+    grid_offset: float,
+    # --- retime ---
+    retime_enabled: bool = False,
+    retime_prob: int = 0,
+    # retime factor in percent, where 100 = normal speed, 50 = 0.5x (slow), 150 = 1.5x (fast)
+    retime_factor_min: int = 100,
+    retime_factor_max: int = 100,
+    skip_retime_if_exists: bool = True,
 ):
     timeline = otio.adapters.read_from_file(input_otio)
     if not isinstance(timeline, otio.schema.Timeline):
@@ -266,16 +274,61 @@ def rebuild_timeline(
             if sr_dur <= 1e-6:
                 continue
 
-            take = min(sr_dur, remaining)
+            # Timeline duration we want to fill for this piece
+            take_out = min(sr_dur, remaining)
+
+            # --- retime: keep timeline duration == take_out, but consume source duration = take_out * speed
+            time_scalar = 1.0
+            take_src = take_out
+
+            if retime_enabled and int(retime_prob) > 0:
+                already_timewarped = any(
+                    isinstance(eff, otio.schema.LinearTimeWarp) for eff in (src_clip.effects or [])
+                )
+
+                if not (skip_retime_if_exists and already_timewarped):
+                    # Probability gate
+                    if random.randint(1, 100) <= int(retime_prob):
+                        # Convert factor range to speed scalars
+                        mn = max(10, int(retime_factor_min)) / 100.0
+                        mx = max(10, int(retime_factor_max)) / 100.0
+                        if mn > mx:
+                            mn, mx = mx, mn
+
+                        # Pick desired speed scalar and adapt to source availability.
+                        desired = random.uniform(mn, mx)
+
+                        # Constraint: take_src = take_out * time_scalar <= sr_dur
+                        max_scalar_for_take = sr_dur / max(take_out, 1e-9)
+
+                        if desired > max_scalar_for_take and max_scalar_for_take < mn:
+                            # Not enough source to apply at least mn speed for this take_out.
+                            # Reduce the timeline chunk so we can still apply mn.
+                            take_out = min(remaining, sr_dur / mn)
+                            max_scalar_for_take = sr_dur / max(take_out, 1e-9)
+
+                        time_scalar = float(min(desired, max_scalar_for_take))
+                        if time_scalar < 0.05:
+                            time_scalar = 1.0
+
+                        take_src = min(sr_dur, take_out * time_scalar)
+                        # Keep exact mapping: output duration = source / scalar
+                        take_out = take_src / time_scalar
 
             new_clip = otio.schema.Clip(
                 name=src_clip.name,
                 media_reference=src_clip.media_reference,
             )
-            new_clip.source_range = make_timerange(sr_start, take, fps)
+            new_clip.source_range = make_timerange(sr_start, take_src, fps)
+
+            # Apply time effect so that source duration maps to timeline duration
+            if abs(time_scalar - 1.0) > 1e-3:
+                new_clip.effects.append(
+                    otio.schema.LinearTimeWarp(name="LinearTimeWarp", time_scalar=float(time_scalar))
+                )
 
             out_video.append(new_clip)
-            remaining -= take
+            remaining -= take_out
 
         if src_i >= len(source_clips):
             break
@@ -308,6 +361,7 @@ def _load_settings(path: str | None) -> dict:
 
 def _apply_settings_to_args(settings: dict, args: argparse.Namespace) -> None:
     ae = settings.get("auto_edit_to_music_1", {}) if isinstance(settings, dict) else {}
+    rt = settings.get("retime_simple", {}) if isinstance(settings, dict) else {}
 
     clip_duration = ae.get("clip_duration")
     if isinstance(clip_duration, (list, tuple)) and len(clip_duration) == 2:
@@ -359,6 +413,34 @@ def _apply_settings_to_args(settings: dict, args: argparse.Namespace) -> None:
         except Exception:
             pass
 
+    # --- retime_simple ---
+    if isinstance(rt, dict):
+        if "f_enabled" in rt:
+            try:
+                args.retime_enabled = bool(rt["f_enabled"])
+            except Exception:
+                pass
+
+        if "retime_prob" in rt:
+            try:
+                args.retime_prob = int(rt["retime_prob"])
+            except Exception:
+                pass
+
+        rf = rt.get("retime_factor")
+        if isinstance(rf, (list, tuple)) and len(rf) == 2:
+            try:
+                args.retime_factor_min = int(rf[0])
+                args.retime_factor_max = int(rf[1])
+            except Exception:
+                pass
+
+        if "skip_exist" in rt:
+            try:
+                args.skip_retime_if_exists = bool(rt["skip_exist"])
+            except Exception:
+                pass
+
 
 def _parse_weights(s: str):
     parts = [p.strip() for p in s.split(",") if p.strip()]
@@ -395,6 +477,27 @@ def main():
     # ✅ NEW: offset for tempo grid (подгонка на 1–2 кадра)
     ap.add_argument("--grid_offset", type=float, default=0.0, help="var mode: shift tempo grid in seconds (+/-)")
 
+    # --- retime (speed) ---
+    ap.add_argument("--retime_enabled", action="store_true", help="enable retime (speed changes)")
+    ap.add_argument("--retime_prob", type=int, default=0, help="retime probability per clip (0..100)")
+    ap.add_argument(
+        "--retime_factor_min",
+        type=int,
+        default=100,
+        help="min retime factor percent (100=normal, 50=0.5x slow, 150=1.5x fast)",
+    )
+    ap.add_argument(
+        "--retime_factor_max",
+        type=int,
+        default=100,
+        help="max retime factor percent (100=normal, 50=0.5x slow, 150=1.5x fast)",
+    )
+    ap.add_argument(
+        "--skip_retime_if_exists",
+        action="store_true",
+        help="skip clips that already have LinearTimeWarp in OTIO",
+    )
+
     ap.add_argument("--settings", default=None, help="path to settings.json (optional)")
     args = ap.parse_args()
 
@@ -427,6 +530,11 @@ def main():
         beat_weights=beat_weights,
         seed=args.seed,
         grid_offset=args.grid_offset,
+        retime_enabled=bool(getattr(args, "retime_enabled", False)),
+        retime_prob=int(getattr(args, "retime_prob", 0)),
+        retime_factor_min=int(getattr(args, "retime_factor_min", 100)),
+        retime_factor_max=int(getattr(args, "retime_factor_max", 100)),
+        skip_retime_if_exists=bool(getattr(args, "skip_retime_if_exists", True)),
     )
 
     print(f"Done. Saved: {args.out}")
