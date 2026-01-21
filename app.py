@@ -138,19 +138,19 @@ def home():
       </label>
 
       <label>Вероятность ретайма (%)</label>
-      <input type="range" id="rt_prob" min="0" max="100" step="1" value="0" />
-      <div class="small">Текущее: <span id="rt_prob_v">0</span></div>
+      <input type="range" id="rt_prob" min="0" max="100" step="1" value="30" />
+      <div class="small">Текущее: <span id="rt_prob_v">30</span></div>
 
       <div class="row">
         <div>
-          <label>Retime factor MIN</label>
-          <input type="range" id="rt_min" min="10" max="200" step="1" value="40" />
-          <div class="small">Текущее: <span id="rt_min_v">40</span></div>
+          <label>Скорость MIN (%)</label>
+          <input type="range" id="rt_min" min="10" max="200" step="1" value="90" />
+          <div class="small">Текущее: <span id="rt_min_v">90</span></div>
         </div>
         <div>
-          <label>Retime factor MAX</label>
-          <input type="range" id="rt_max" min="10" max="200" step="1" value="60" />
-          <div class="small">Текущее: <span id="rt_max_v">60</span></div>
+          <label>Скорость MAX (%)</label>
+          <input type="range" id="rt_max" min="10" max="200" step="1" value="110" />
+          <div class="small">Текущее: <span id="rt_max_v">110</span></div>
         </div>
       </div>
 
