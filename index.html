@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>DaVinci OTIO Beat Cutter</title>
+</head>
+<body>
+
+<h2>DaVinci OTIO Beat Cutter</h2>
+
+<form method="POST" action="/process" enctype="multipart/form-data">
+
+  <div>
+    <label>OTIO файл</label><br>
+    <input type="file" name="timeline" accept=".otio" required>
+  </div>
+
+  <div>
+    <label>Музыка (MP3 / WAV)</label><br>
+    <input type="file" name="music" accept=".mp3,.wav" required>
+  </div>
+
+  <div>
+    <label>FPS</label><br>
+    <input type="number" name="fps" value="25">
+  </div>
+
+  <hr>
+
+  <h3>Автомонтаж под музыку</h3>
+
+  <label>
+    <input type="checkbox" id="ae_enabled" checked>
+    Включить
+  </label>
+
+  <div>
+    Длина клипа (сек):<br>
+    min <input type="number" id="cd_min" value="0.5" step="0.1">
+    max <input type="number" id="cd_max" value="1.9" step="0.1">
+  </div>
+
+  <div>
+    Shuffle (%):
+    <input type="number" id="shuffle" value="0" min="0" max="100">
+  </div>
+
+  <hr>
+
+  <h3>Ретайм</h3>
+
+  <label>
+    <input type="checkbox" id="rt_enabled">
+    Включить ретайм
+  </label>
+
+  <div>
+    Вероятность ретайма (%):
+    <input type="number" id="rt_prob" value="0" min="0" max="100">
+  </div>
+
+  <!-- СЮДА ПОЛОЖИМ JSON -->
+  <input type="hidden" name="settings" id="settings_json">
+
+  <br><br>
+  <button type="submit">Смонтировать и скачать OTIO</button>
+
+</form>
+
+<script>
+  function bindRange(id, outId) {
+    const el = document.getElementById(id);
+    const out = document.getElementById(outId);
+    const upd = () => out.textContent = el.value;
+    el.addEventListener('input', upd);
+    upd();
+  }
+
+  ["cd_min","cd_max","ct_min","ct_max","shuffle","shuffle_long","rt_prob","rt_min","rt_max"].forEach(id => {
+    bindRange(id, id + "_v");
+  });
+
+  function clampPair(minEl, maxEl) {
+    const a = parseFloat(minEl.value);
+    const b = parseFloat(maxEl.value);
+    if (a > b) {
+      // подравниваем: двигаем MAX к MIN
+      maxEl.value = String(a);
+      const out = document.getElementById(maxEl.id + "_v");
+      if (out) out.textContent = maxEl.value;
+    }
+  }
+
+  // автоподравнивание при движении ползунков
+  cd_min.addEventListener("input", () => clampPair(cd_min, cd_max));
+  cd_max.addEventListener("input", () => clampPair(cd_min, cd_max));
+  ct_min.addEventListener("input", () => clampPair(ct_min, ct_max));
+  ct_max.addEventListener("input", () => clampPair(ct_min, ct_max));
+  rt_min.addEventListener("input", () => clampPair(rt_min, rt_max));
+  rt_max.addEventListener("input", () => clampPair(rt_min, rt_max));
+
+  document.getElementById("beatForm").addEventListener("submit", () => {
+    // перед отправкой ещё раз гарантируем пары
+    clampPair(cd_min, cd_max);
+    clampPair(ct_min, ct_max);
+    clampPair(rt_min, rt_max);
+
+    const settings = {
+      auto_edit_to_music_1: {
+        f_enabled: ae_enabled.checked,
+        clip_duration: [parseFloat(cd_min.value), parseFloat(cd_max.value)],
+        clip_transient: [parseFloat(ct_min.value), parseFloat(ct_max.value)],
+        audio_lib: audio_lib.value,
+        if_short_clip: if_short.value,
+        if_long_clip: if_long.value,
+        shuffle: parseInt(shuffle.value, 10),
+        shuffle_long: parseInt(shuffle_long.value, 10),
+        video_track_name: "vid1",
+        audio_track_name: "aud1"
+      },
+      retime_simple: {
+        f_enabled: rt_enabled.checked,
+        retime_prob: parseInt(rt_prob.value, 10),
+        retime_factor: [parseInt(rt_min.value, 10), parseInt(rt_max.value, 10)],
+        algorithm: rt_algo.value,
+        skip_exist: skip_exist.checked,
+        apply_to_audio: apply_audio.checked,
+        video_track_name: "vid1",
+        audio_track_name: "aud1"
+      }
+    };
+
+    settings_json.value = JSON.stringify(settings);
+  });
+</script>
+
+
+</body>
+</html>
