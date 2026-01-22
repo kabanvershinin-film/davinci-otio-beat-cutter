@@ -1,73 +1,179 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DaVinci OTIO Beat Cutter</title>
+
+  <!-- WaveSurfer (CDN) -->
+  <script src="https://unpkg.com/wavesurfer.js@7"></script>
+  <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 18px; }
+    label { display:block; margin-top: 12px; font-weight: 600; }
+    input, select, button { width: 100%; padding: 10px; margin-top: 6px; }
+    button { cursor: pointer; font-weight: 700; }
+    .hint { color:#666; font-size: 14px; margin-top: 10px; }
+    .row { display:flex; gap:12px; }
+    .row > div { flex:1; }
+    .small { font-weight: 400; color:#666; font-size: 12px; }
+    .sep { height: 1px; background: #eee; margin: 16px 0; }
+
+    .wavebox { margin-top: 10px; border: 1px solid #e5e5e5; border-radius: 12px; padding: 12px; background: #fafafa; }
+    #waveform { height: 90px; }
+    .toolbar { display:flex; gap:10px; margin-top: 10px; }
+    .toolbar button { width:auto; padding: 10px 14px; border-radius: 10px; border:1px solid #ddd; background:#fff; }
+    .status { font-size: 13px; color:#444; margin-top: 8px; white-space: pre-wrap; }
+  </style>
 </head>
+
 <body>
+  <h2>DaVinci OTIO Beat Cutter</h2>
 
-<h2>DaVinci OTIO Beat Cutter</h2>
+  <div class="card">
+    <form id="beatForm" action="/process" method="post" enctype="multipart/form-data">
 
-<form method="POST" action="/process" enctype="multipart/form-data">
+      <label>OTIO файл (timeline.otio)</label>
+      <input type="file" name="timeline" accept=".otio" required />
 
-  <div>
-    <label>OTIO файл</label><br>
-    <input type="file" name="timeline" accept=".otio" required>
+      <label>MP3 / WAV трек</label>
+      <input id="musicFile" type="file" name="music" accept=".mp3,.wav,audio/mpeg,audio/wav" required />
+
+      <!-- Waveform + Aggressive preset -->
+      <div class="wavebox">
+        <div id="waveform"></div>
+
+        <div class="toolbar">
+          <button type="button" id="btnAggressive">Aggressive (жирные места)</button>
+          <button type="button" id="btnClear">Очистить зоны</button>
+        </div>
+
+        <div class="status" id="waveStatus">Загрузи музыку — появится waveform, потом подсветка “жирных зон”.</div>
+      </div>
+
+      <label>FPS (если нужно)</label>
+      <input type="number" name="fps" value="25" min="1" max="120" />
+
+      <div class="sep"></div>
+
+      <h3>Настройки монтажа</h3>
+
+      <label>
+        <input type="checkbox" id="ae_enabled" checked />
+        Автомонтаж под музыку
+      </label>
+
+      <div class="row">
+        <div>
+          <label>Длина клипа MIN (сек)</label>
+          <input type="range" id="cd_min" min="0.2" max="5" step="0.1" value="0.5" />
+          <div class="small">Текущее: <span id="cd_min_v">0.5</span></div>
+        </div>
+        <div>
+          <label>Длина клипа MAX (сек)</label>
+          <input type="range" id="cd_max" min="0.2" max="5" step="0.1" value="1.9" />
+          <div class="small">Текущее: <span id="cd_max_v">1.9</span></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Поиск транзиента MIN (сек)</label>
+          <input type="range" id="ct_min" min="0.2" max="5" step="0.1" value="0.4" />
+          <div class="small">Текущее: <span id="ct_min_v">0.4</span></div>
+        </div>
+        <div>
+          <label>Поиск транзиента MAX (сек)</label>
+          <input type="range" id="ct_max" min="0.2" max="5" step="0.1" value="2.1" />
+          <div class="small">Текущее: <span id="ct_max_v">2.1</span></div>
+        </div>
+      </div>
+
+      <label>Аудио-детектор</label>
+      <select id="audio_lib">
+        <option value="librosa_def" selected>librosa (обычно)</option>
+        <option value="aubio_def">aubio (если плохо ловит)</option>
+      </select>
+
+      <label>Если клип короткий</label>
+      <select id="if_short">
+        <option value="delete" selected>удалить</option>
+        <option value="keep">оставить</option>
+      </select>
+
+      <label>Если клип длинный</label>
+      <select id="if_long">
+        <option value="cut" selected>порезать</option>
+        <option value="delete">удалить</option>
+      </select>
+
+      <label>Shuffle (%)</label>
+      <input type="range" id="shuffle" min="0" max="100" step="1" value="0" />
+      <div class="small">Текущее: <span id="shuffle_v">0</span></div>
+
+      <label>Shuffle после нарезки длинных (%)</label>
+      <input type="range" id="shuffle_long" min="0" max="100" step="1" value="0" />
+      <div class="small">Текущее: <span id="shuffle_long_v">0</span></div>
+
+      <div class="sep"></div>
+
+      <h3>Ретайм (скорость)</h3>
+      <label>
+        <input type="checkbox" id="rt_enabled" />
+        Включить ретайм
+      </label>
+
+      <label>Вероятность ретайма (%)</label>
+      <input type="range" id="rt_prob" min="0" max="100" step="1" value="0" />
+      <div class="small">Текущее: <span id="rt_prob_v">0</span></div>
+
+      <div class="row">
+        <div>
+          <label>Retime factor MIN</label>
+          <input type="range" id="rt_min" min="10" max="200" step="1" value="40" />
+          <div class="small">Текущее: <span id="rt_min_v">40</span></div>
+        </div>
+        <div>
+          <label>Retime factor MAX</label>
+          <input type="range" id="rt_max" min="10" max="200" step="1" value="60" />
+          <div class="small">Текущее: <span id="rt_max_v">60</span></div>
+        </div>
+      </div>
+
+      <label>Алгоритм ретайма</label>
+      <select id="rt_algo">
+        <option value="optical-flow" selected>optical-flow</option>
+        <option value="frame-blending">frame-blending</option>
+        <option value="floor">floor</option>
+      </select>
+
+      <label>
+        <input type="checkbox" id="skip_exist" checked />
+        Не трогать клипы с уже заданной скоростью
+      </label>
+
+      <label>
+        <input type="checkbox" id="apply_audio" checked />
+        Применять к аудио
+      </label>
+
+      <!-- Скрытое поле settings -->
+      <input type="hidden" name="settings" id="settings_json" />
+      <!-- Скрытое поле для агрессивных зон -->
+      <input type="hidden" name="beat_regions" id="beat_regions_json" />
+
+      <button type="submit">Смонтировать и скачать OTIO</button>
+    </form>
+
+    <div class="hint">
+      После нажатия подожди: обработка зависит от длины трека.
+    </div>
   </div>
-
-  <div>
-    <label>Музыка (MP3 / WAV)</label><br>
-    <input type="file" name="music" accept=".mp3,.wav" required>
-  </div>
-
-  <div>
-    <label>FPS</label><br>
-    <input type="number" name="fps" value="25">
-  </div>
-
-  <hr>
-
-  <h3>Автомонтаж под музыку</h3>
-
-  <label>
-    <input type="checkbox" id="ae_enabled" checked>
-    Включить
-  </label>
-
-  <div>
-    Длина клипа (сек):<br>
-    min <input type="number" id="cd_min" value="0.5" step="0.1">
-    max <input type="number" id="cd_max" value="1.9" step="0.1">
-  </div>
-
-  <div>
-    Shuffle (%):
-    <input type="number" id="shuffle" value="0" min="0" max="100">
-  </div>
-
-  <hr>
-
-  <h3>Ретайм</h3>
-
-  <label>
-    <input type="checkbox" id="rt_enabled">
-    Включить ретайм
-  </label>
-
-  <div>
-    Вероятность ретайма (%):
-    <input type="number" id="rt_prob" value="0" min="0" max="100">
-  </div>
-
-  <!-- СЮДА ПОЛОЖИМ JSON -->
-  <input type="hidden" name="settings" id="settings_json">
-
-  <br><br>
-  <button type="submit">Смонтировать и скачать OTIO</button>
-
-</form>
 
 <script>
+  // ---- UI helpers ----
   function bindRange(id, outId) {
     const el = document.getElementById(id);
     const out = document.getElementById(outId);
@@ -80,36 +186,133 @@
     bindRange(id, id + "_v");
   });
 
-  function clampPair(minEl, maxEl) {
-    const a = parseFloat(minEl.value);
-    const b = parseFloat(maxEl.value);
-    if (a > b) {
-      // подравниваем: двигаем MAX к MIN
-      maxEl.value = String(a);
-      const out = document.getElementById(maxEl.id + "_v");
-      if (out) out.textContent = maxEl.value;
-    }
+  // ---- WaveSurfer ----
+  const statusEl = document.getElementById("waveStatus");
+  const musicInput = document.getElementById("musicFile");
+  const btnAggressive = document.getElementById("btnAggressive");
+  const btnClear = document.getElementById("btnClear");
+  const beatRegionsField = document.getElementById("beat_regions_json");
+
+  let ws = null;
+  let regionsPlugin = null;
+  let lastAggressiveRegions = [];
+
+  function ensureWaveSurfer() {
+    if (ws) return;
+
+    regionsPlugin = WaveSurfer.Regions.create();
+
+    ws = WaveSurfer.create({
+      container: "#waveform",
+      height: 90,
+      waveColor: "#9aa0a6",
+      progressColor: "#4a90e2",
+      cursorColor: "#111",
+      plugins: [regionsPlugin],
+    });
   }
 
-  // автоподравнивание при движении ползунков
-  cd_min.addEventListener("input", () => clampPair(cd_min, cd_max));
-  cd_max.addEventListener("input", () => clampPair(cd_min, cd_max));
-  ct_min.addEventListener("input", () => clampPair(ct_min, ct_max));
-  ct_max.addEventListener("input", () => clampPair(ct_min, ct_max));
-  rt_min.addEventListener("input", () => clampPair(rt_min, rt_max));
-  rt_max.addEventListener("input", () => clampPair(rt_min, rt_max));
+  function clearRegions() {
+    lastAggressiveRegions = [];
+    beatRegionsField.value = "";
+    if (regionsPlugin) regionsPlugin.clearRegions();
+    statusEl.textContent = "Зоны очищены.";
+  }
 
-  document.getElementById("beatForm").addEventListener("submit", () => {
-    // перед отправкой ещё раз гарантируем пары
-    clampPair(cd_min, cd_max);
-    clampPair(ct_min, ct_max);
-    clampPair(rt_min, rt_max);
+  function drawAggressiveRegions(regions) {
+    if (!regionsPlugin) return;
+    regionsPlugin.clearRegions();
+
+    regions.forEach(r => {
+      regionsPlugin.addRegion({
+        start: r.start,
+        end: r.end,
+        color: "rgba(0, 200, 0, 0.22)",
+        drag: true,
+        resize: true,
+      });
+    });
+
+    // сохраняем выбранное (можно отредачить руками — сохраним перед submit)
+    lastAggressiveRegions = regions.map(r => ({ start: r.start, end: r.end }));
+    statusEl.textContent = `Aggressive: зон = ${regions.length}. Можно двигать/растягивать мышкой.`;
+  }
+
+  async function analyzeAggressive(file) {
+    statusEl.textContent = "Анализирую трек (Aggressive)…";
+
+    const fd = new FormData();
+    fd.append("music", file);
+
+    const res = await fetch("/analyze-audio", {
+      method: "POST",
+      body: fd
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "analyze-audio failed");
+    }
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    const regions = data.regions || [];
+    drawAggressiveRegions(regions);
+  }
+
+  // авто: загрузил файл -> waveform локально + анализ на сервере
+  musicInput.addEventListener("change", async () => {
+    const file = musicInput.files && musicInput.files[0];
+    if (!file) return;
+
+    ensureWaveSurfer();
+    clearRegions();
+
+    statusEl.textContent = "Рисую waveform…";
+    await ws.loadBlob(file);
+
+    // сразу запускаем анализ
+    try {
+      await analyzeAggressive(file);
+    } catch (e) {
+      statusEl.textContent = "Ошибка анализа: " + (e?.message || e);
+    }
+  });
+
+  btnAggressive.addEventListener("click", async () => {
+    const file = musicInput.files && musicInput.files[0];
+    if (!file) {
+      alert("Сначала выбери файл музыки");
+      return;
+    }
+    ensureWaveSurfer();
+    try {
+      await analyzeAggressive(file);
+    } catch (e) {
+      statusEl.textContent = "Ошибка анализа: " + (e?.message || e);
+    }
+  });
+
+  btnClear.addEventListener("click", () => clearRegions());
+
+  // перед отправкой формы: settings + regions из UI
+  document.getElementById("beatForm").addEventListener("submit", (e) => {
+    const cdMin = parseFloat(cd_min.value), cdMax = parseFloat(cd_max.value);
+    const ctMin = parseFloat(ct_min.value), ctMax = parseFloat(ct_max.value);
+    const rtMin = parseInt(rt_min.value), rtMax = parseInt(rt_max.value);
+
+    if (cdMin > cdMax || ctMin > ctMax || rtMin > rtMax) {
+      e.preventDefault();
+      alert("Проверь диапазоны: MIN не должен быть больше MAX");
+      return;
+    }
 
     const settings = {
       auto_edit_to_music_1: {
         f_enabled: ae_enabled.checked,
-        clip_duration: [parseFloat(cd_min.value), parseFloat(cd_max.value)],
-        clip_transient: [parseFloat(ct_min.value), parseFloat(ct_max.value)],
+        clip_duration: [cdMin, cdMax],
+        clip_transient: [ctMin, ctMax],
         audio_lib: audio_lib.value,
         if_short_clip: if_short.value,
         if_long_clip: if_long.value,
@@ -121,7 +324,7 @@
       retime_simple: {
         f_enabled: rt_enabled.checked,
         retime_prob: parseInt(rt_prob.value, 10),
-        retime_factor: [parseInt(rt_min.value, 10), parseInt(rt_max.value, 10)],
+        retime_factor: [rtMin, rtMax],
         algorithm: rt_algo.value,
         skip_exist: skip_exist.checked,
         apply_to_audio: apply_audio.checked,
@@ -131,9 +334,22 @@
     };
 
     settings_json.value = JSON.stringify(settings);
+
+    // Сохраняем текущие регионы с учётом ручных правок
+    if (regionsPlugin) {
+      const regs = Object.values(regionsPlugin.getRegions()).map(r => ({
+        start: +r.start.toFixed(3),
+        end: +r.end.toFixed(3)
+      })).sort((a,b)=>a.start-b.start);
+
+      beatRegionsField.value = JSON.stringify(regs);
+    } else if (lastAggressiveRegions.length) {
+      beatRegionsField.value = JSON.stringify(lastAggressiveRegions);
+    } else {
+      beatRegionsField.value = "";
+    }
   });
 </script>
-
 
 </body>
 </html>
