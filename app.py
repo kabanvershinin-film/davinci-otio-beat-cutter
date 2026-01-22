@@ -66,19 +66,6 @@ def home():
 
       <div class="row">
         <div>
-          <label>Сдвиг бита (ms)</label>
-          <input type="range" id="beat_offset_ms" min="-200" max="200" step="1" value="0" />
-          <div class="small">Текущее: <span id="beat_offset_ms_v">0</span></div>
-        </div>
-        <div>
-          <label>Микро-сдвиг сетки (ms)</label>
-          <input type="range" id="grid_offset_ms" min="-80" max="80" step="1" value="0" />
-          <div class="small">Текущее: <span id="grid_offset_ms_v">0</span></div>
-        </div>
-      </div>
-
-      <div class="row">
-        <div>
           <label>Длина клипа MIN (сек)</label>
           <input type="range" id="cd_min" min="0.2" max="5" step="0.1" value="0.5" />
           <div class="small">Текущее: <span id="cd_min_v">0.5</span></div>
@@ -109,6 +96,18 @@ def home():
         <option value="aubio_def">aubio (если плохо ловит)</option>
       </select>
 
+      <hr>
+      <h3>Акценты (сильные / слабые биты)</h3>
+
+      <label>
+        <input type="checkbox" id="strong_only" />
+        Резать только по сильным ударам (пики)
+      </label>
+
+      <label>Порог силы (0.0–1.0)</label>
+      <input type="range" id="strong_thr" min="0" max="1" step="0.05" value="0.7" />
+      <div class="small">Текущее: <span id="strong_thr_v">0.7</span></div>
+
       <label>Если клип короткий</label>
       <select id="if_short">
         <option value="delete" selected>удалить</option>
@@ -138,19 +137,19 @@ def home():
       </label>
 
       <label>Вероятность ретайма (%)</label>
-      <input type="range" id="rt_prob" min="0" max="100" step="1" value="30" />
-      <div class="small">Текущее: <span id="rt_prob_v">30</span></div>
+      <input type="range" id="rt_prob" min="0" max="100" step="1" value="0" />
+      <div class="small">Текущее: <span id="rt_prob_v">0</span></div>
 
       <div class="row">
         <div>
-          <label>Скорость MIN (%)</label>
-          <input type="range" id="rt_min" min="10" max="200" step="1" value="90" />
-          <div class="small">Текущее: <span id="rt_min_v">90</span></div>
+          <label>Retime factor MIN</label>
+          <input type="range" id="rt_min" min="10" max="200" step="1" value="40" />
+          <div class="small">Текущее: <span id="rt_min_v">40</span></div>
         </div>
         <div>
-          <label>Скорость MAX (%)</label>
-          <input type="range" id="rt_max" min="10" max="200" step="1" value="110" />
-          <div class="small">Текущее: <span id="rt_max_v">110</span></div>
+          <label>Retime factor MAX</label>
+          <input type="range" id="rt_max" min="10" max="200" step="1" value="60" />
+          <div class="small">Текущее: <span id="rt_max_v">60</span></div>
         </div>
       </div>
 
@@ -191,7 +190,7 @@ def home():
     upd();
   }
 
-  ["beat_offset_ms","grid_offset_ms","cd_min","cd_max","ct_min","ct_max","shuffle","shuffle_long","rt_prob","rt_min","rt_max"].forEach(id => {
+  ["cd_min","cd_max","ct_min","ct_max","shuffle","shuffle_long","strong_thr","rt_prob","rt_min","rt_max"].forEach(id => {
     bindRange(id, id + "_v");
   });
 
@@ -209,8 +208,6 @@ def home():
     const settings = {
       auto_edit_to_music_1: {
         f_enabled: ae_enabled.checked,
-        beat_offset: parseFloat(beat_offset_ms.value) / 1000,
-        grid_offset: parseFloat(grid_offset_ms.value) / 1000,
         clip_duration: [cdMin, cdMax],
         clip_transient: [ctMin, ctMax],
         audio_lib: audio_lib.value,
@@ -219,7 +216,9 @@ def home():
         shuffle: parseInt(shuffle.value, 10),
         shuffle_long: parseInt(shuffle_long.value, 10),
         video_track_name: "vid1",
-        audio_track_name: "aud1"
+        audio_track_name: "aud1",
+        strong_only: strong_only.checked,
+        strong_threshold: parseFloat(strong_thr.value)
       },
       retime_simple: {
         f_enabled: rt_enabled.checked,
@@ -279,6 +278,7 @@ async def process(
                 "--music", str(in_mp3),
                 "--out", str(out_otio),
                 "--fps", str(fps),
+                "--grid_offset", "0.02",
             ]
 
             # ✅ передаём settings только если они есть
