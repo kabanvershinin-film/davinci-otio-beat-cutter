@@ -66,6 +66,7 @@ def home():
       <ul>
         <li>Загрузи <b>OTIO</b> (таймлайн из DaVinci Resolve) и <b>MP3/WAV</b> (музыку).</li>
         <li>Сервис анализирует трек, находит точки ритма и пересобирает таймлайн так, чтобы <b>склейки попадали в ритм</b>.</li>
+        <li>Дополнительно: склейки <b>прилипают к резким пикам (транзиентам)</b> на waveform в заданном окне.</li>
         <li>На выходе ты скачиваешь новый <b>.otio</b> и открываешь его в Resolve.</li>
       </ul>
 
@@ -81,12 +82,16 @@ def home():
         <li><b>MAX</b> — защита от слишком длинных кусков.</li>
       </ul>
 
-      <p><span class="tag">Поиск транзиента MIN / MAX</span><br>
-      Окно, в котором сервис может “подвинуть” точку склейки к ближайшему транзиенту (резкому удару/акценту).</p>
+      <p><span class="tag">Снап к транзиентам MIN / MAX</span><br>
+      Окно, в котором сервис может “подвинуть” точку склейки к ближайшему <b>резкому пику</b> (удару).</p>
       <ul>
-        <li><b>MIN</b> — насколько рано можно искать транзиент.</li>
-        <li><b>MAX</b> — насколько поздно можно искать транзиент.</li>
+        <li><b>MIN</b> — насколько <b>раньше</b> можно искать пик.</li>
+        <li><b>MAX</b> — насколько <b>позже</b> можно искать пик.</li>
       </ul>
+
+      <p class="note">
+        Рекомендация: стартуй с <b>MIN 0.08</b> и <b>MAX 0.12</b>. Если надо “жёстче” — увеличивай до 0.15–0.20.
+      </p>
 
       <p><span class="tag">Аудио-детектор</span><br>
       Чем анализировать музыку (детектор ударов).</p>
@@ -113,10 +118,10 @@ def home():
       Дополнительное перемешивание после того, как длинные куски были порезаны.</p>
 
       <p class="note">
-        Подсказка: если “вроде попадает, но чуть мимо”, обычно помогает тонкая подстройка сетки (grid/beat offset). Если у тебя эти регуляторы включены — начни с ±20–40 мс.
+        Подсказка: если “вроде попадает, но чуть мимо”, обычно помогает тонкая подстройка сетки (grid_offset). Начни с ±0.02–0.04 сек.
       </p>
 
-      <h4>Ретайм (ускорение/замедление)</h4>
+      <h4>Ретайм (скорость)</h4>
       <p><span class="tag">Включить ретайм</span><br>
       Иногда ускоряет/замедляет клипы, чтобы визуально плотнее ложились в ритм.</p>
 
@@ -139,8 +144,6 @@ def home():
 
       <p><span class="tag">Применять к аудио</span><br>
       Если ускоряем/замедляем клип — пытаться менять скорость привязанного аудио.</p>
-
-      <p class="warn"><b>Примечание:</b> если в твоей версии сборщик OTIO ещё не применяет ретайм на дорожке, этот блок будет “памяткой на будущее”. Можем включить реальный ретайм в OTIO отдельным апдейтом.</p>
     </details>
 
     <form id="beatForm" action="/process" method="post" enctype="multipart/form-data">
@@ -177,14 +180,14 @@ def home():
 
       <div class="row">
         <div>
-          <label>Поиск транзиента MIN (сек)</label>
-          <input type="range" id="ct_min" min="0.2" max="5" step="0.1" value="0.4" />
-          <div class="small">Текущее: <span id="ct_min_v">0.4</span></div>
+          <label>Снап к транзиентам MIN (сек)</label>
+          <input type="range" id="ct_min" min="0.00" max="0.50" step="0.01" value="0.08" />
+          <div class="small">Текущее: <span id="ct_min_v">0.08</span></div>
         </div>
         <div>
-          <label>Поиск транзиента MAX (сек)</label>
-          <input type="range" id="ct_max" min="0.2" max="5" step="0.1" value="2.1" />
-          <div class="small">Текущее: <span id="ct_max_v">2.1</span></div>
+          <label>Снап к транзиентам MAX (сек)</label>
+          <input type="range" id="ct_max" min="0.00" max="0.50" step="0.01" value="0.12" />
+          <div class="small">Текущее: <span id="ct_max_v">0.12</span></div>
         </div>
       </div>
 
@@ -256,7 +259,6 @@ def home():
         Применять к аудио
       </label>
 
-      <!-- Скрытое поле, куда кладём JSON -->
       <input type="hidden" name="settings" id="settings_json" />
 
       <button type="submit">Смонтировать и скачать OTIO</button>
@@ -295,7 +297,7 @@ def home():
       auto_edit_to_music_1: {
         f_enabled: ae_enabled.checked,
         clip_duration: [cdMin, cdMax],
-        clip_transient: [ctMin, ctMax],
+        clip_transient: [ctMin, ctMax],   // ✅ теперь реально используется в main.py
         audio_lib: audio_lib.value,
         if_short_clip: if_short.value,
         if_long_clip: if_long.value,
@@ -330,7 +332,7 @@ async def process(
     timeline: UploadFile = File(...),
     music: UploadFile = File(...),
     fps: int = Form(25),
-    settings: str = Form(None),  # ✅ добавили
+    settings: str = Form(None),
 ):
     result = None
     try:
@@ -344,7 +346,6 @@ async def process(
             await save_uploadfile(music, in_mp3)
             gc.collect()
 
-            # ✅ сохраняем settings в файл (если пришли)
             settings_path = tmp_path / "settings.json"
             settings_obj = {}
             if settings:
@@ -365,7 +366,6 @@ async def process(
                 "--grid_offset", "0.02",
             ]
 
-            # ✅ передаём settings только если они есть
             if settings_obj:
                 cmd += ["--settings", str(settings_path)]
 
