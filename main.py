@@ -1,4 +1,5 @@
 import argparse
+import copy
 import gc
 import json
 from pathlib import Path
@@ -33,10 +34,6 @@ def detect_beats(
     tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, units="frames")
     beat_times = librosa.frames_to_time(beat_frames, sr=sr) + float(start_offset)
 
-    # акценты (сильные/слабые): onset envelope (0..inf)
-    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
-    onset_times = librosa.times_like(onset_env, sr=sr) + float(start_offset)
-
     beat_times = beat_times[beat_times > 0]
     beat_times = np.unique(np.round(beat_times, 4)).tolist()
 
@@ -45,7 +42,7 @@ def detect_beats(
     del y, beat_frames
     gc.collect()
 
-    return beat_times, float(music_duration), float(tempo), onset_times, onset_env
+    return beat_times, float(music_duration), float(tempo)
 
 
 def _filter_beats_min_gap(beat_times, min_cut):
@@ -61,60 +58,6 @@ def _filter_beats_min_gap(beat_times, min_cut):
         filtered.append(t)
         last = t
     return filtered
-
-
-
-def _make_strength_fn(onset_times: np.ndarray, onset_env: np.ndarray):
-    """Функция strength_at(t)->[0..1] по onset envelope (для сильных/слабых ударов)."""
-    if onset_times is None or onset_env is None or len(onset_env) < 3:
-        return lambda _t: 0.5
-
-    env = np.asarray(onset_env, dtype=float)
-    p95 = float(np.percentile(env, 95)) if np.any(env > 0) else 1.0
-    if p95 <= 1e-9:
-        p95 = 1.0
-    times = np.asarray(onset_times, dtype=float)
-
-    def strength_at(t: float) -> float:
-        t = float(t)
-        idx = int(np.argmin(np.abs(times - t)))
-        val = float(env[idx]) / p95
-        if val < 0.0:
-            val = 0.0
-        if val > 1.0:
-            val = 1.0
-        return val
-
-    return strength_at
-
-
-def filter_cuts_by_strength(cut_times, strength_at, min_cut: float, strong_threshold: float = 0.7):
-    """Оставляет только сильные точки (>=threshold), сохраняя min_cut и 0/конец.
-    Если точек стало слишком мало — возвращает исходные cut_times."""
-    if not cut_times or len(cut_times) < 3:
-        return cut_times
-
-    strong_threshold = float(strong_threshold)
-    kept = [float(cut_times[0])]
-    last = kept[0]
-
-    for t in cut_times[1:-1]:
-        t = float(t)
-        if t - last < float(min_cut):
-            continue
-        if float(strength_at(t)) >= strong_threshold:
-            kept.append(t)
-            last = t
-
-    kept.append(float(cut_times[-1]))
-
-    kept = sorted(set(np.round(kept, 4).tolist()))
-    if kept[0] != 0.0:
-        kept.insert(0, 0.0)
-
-    if len(kept) < 3:
-        return cut_times
-    return kept
 
 
 def build_cut_times_by_beats(beat_times, music_duration, min_cut, beat_step=1):
@@ -271,9 +214,7 @@ def rebuild_timeline(
     mode: str,
     beat_weights: tuple[int, int, int, int],
     seed: int | None,
-    grid_offset: float,
-    strong_only: bool,
-    strong_threshold: float
+    grid_offset: float
 ):
     timeline = otio.adapters.read_from_file(input_otio)
     if not isinstance(timeline, otio.schema.Timeline):
@@ -298,11 +239,7 @@ def rebuild_timeline(
             grid, min_cut=min_cut, beat_weights=beat_weights, seed=seed
         )
 
-        # ✅ если включены "сильные биты" — оставляем только акцентные точки
-    if strong_only:
-        cuts = filter_cuts_by_strength(cuts, strength_at, min_cut=min_cut, strong_threshold=strong_threshold)
-
-segments = [(cuts[i], cuts[i + 1]) for i in range(len(cuts) - 1)]
+    segments = [(cuts[i], cuts[i + 1]) for i in range(len(cuts) - 1)]
     segment_durations = [b - a for a, b in segments]
 
     out_tl = otio.schema.Timeline(name=f"{timeline.name}_beatcut")
@@ -332,10 +269,15 @@ segments = [(cuts[i], cuts[i + 1]) for i in range(len(cuts) - 1)]
 
             take = min(sr_dur, remaining)
 
-            new_clip = otio.schema.Clip(
-                name=src_clip.name,
-                media_reference=src_clip.media_reference,
-            )
+            # Preserve Resolve retime (speed changes / curves), markers, metadata, etc.
+            # Creating a new Clip from scratch drops src_clip.effects and src_clip.metadata,
+            # which is where Resolve stores LinearTimeWarp / TimeEffect keyframes.
+            try:
+                new_clip = src_clip.clone()
+            except Exception:
+                new_clip = copy.deepcopy(src_clip)
+
+            # Now override only the used portion.
             new_clip.source_range = make_timerange(sr_start, take, fps)
 
             out_video.append(new_clip)
@@ -423,18 +365,6 @@ def _apply_settings_to_args(settings: dict, args: argparse.Namespace) -> None:
         except Exception:
             pass
 
-    if "strong_only" in ae:
-        try:
-            args.strong_only = bool(ae["strong_only"])
-        except Exception:
-            pass
-
-    if "strong_threshold" in ae:
-        try:
-            args.strong_threshold = float(ae["strong_threshold"])
-        except Exception:
-            pass
-
 
 def _parse_weights(s: str):
     parts = [p.strip() for p in s.split(",") if p.strip()]
@@ -471,10 +401,6 @@ def main():
     # ✅ NEW: offset for tempo grid (подгонка на 1–2 кадра)
     ap.add_argument("--grid_offset", type=float, default=0.0, help="var mode: shift tempo grid in seconds (+/-)")
 
-    # акценты
-    ap.add_argument("--strong_only", action="store_true", help="cut only on strong hits (uses onset strength)")
-    ap.add_argument("--strong_threshold", type=float, default=0.7, help="strength threshold 0..1 for strong cuts")
-
     ap.add_argument("--settings", default=None, help="path to settings.json (optional)")
     args = ap.parse_args()
 
@@ -507,8 +433,6 @@ def main():
         beat_weights=beat_weights,
         seed=args.seed,
         grid_offset=args.grid_offset,
-        strong_only=args.strong_only,
-        strong_threshold=args.strong_threshold,
     )
 
     print(f"Done. Saved: {args.out}")
