@@ -1,5 +1,4 @@
 import argparse
-import copy
 import gc
 import json
 from pathlib import Path
@@ -269,15 +268,10 @@ def rebuild_timeline(
 
             take = min(sr_dur, remaining)
 
-            # Preserve Resolve retime (speed changes / curves), markers, metadata, etc.
-            # Creating a new Clip from scratch drops src_clip.effects and src_clip.metadata,
-            # which is where Resolve stores LinearTimeWarp / TimeEffect keyframes.
-            try:
-                new_clip = src_clip.clone()
-            except Exception:
-                new_clip = copy.deepcopy(src_clip)
-
-            # Now override only the used portion.
+            new_clip = otio.schema.Clip(
+                name=src_clip.name,
+                media_reference=src_clip.media_reference,
+            )
             new_clip.source_range = make_timerange(sr_start, take, fps)
 
             out_video.append(new_clip)
