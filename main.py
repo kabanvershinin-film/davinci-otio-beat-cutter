@@ -86,11 +86,10 @@ def build_cut_times_by_beats(beat_times, music_duration, min_cut, beat_step=1):
     return cuts
 
 
-# ---------- NEW: tempo grid (чтобы НЕ плывёт) ----------
+# ---------- tempo grid (чтобы НЕ плывёт) ----------
 def make_tempo_grid(beat_times, music_duration, tempo, grid_offset=0.0):
     """
     Строим ровную сетку по tempo (BPM) и якорим от первого бита.
-    Это сильно стабилизирует попадание (в отличие от "сырого" beat_times).
     grid_offset — мелкая подстройка сетки (+/- секунды), если надо (1-2 кадра).
     """
     beat_times = [float(t) for t in beat_times if float(t) > 0]
@@ -111,7 +110,6 @@ def make_tempo_grid(beat_times, music_duration, tempo, grid_offset=0.0):
 
     grid = [0.0]
     t = t0
-    # строим сетку до конца трека
     while t < music_duration - 0.01:
         if t > 0:
             grid.append(float(t))
@@ -129,7 +127,6 @@ def make_tempo_grid(beat_times, music_duration, tempo, grid_offset=0.0):
 def build_cuts_from_grid(grid_times, min_cut, beat_weights=(55, 30, 12, 3), seed=None):
     """
     Режем по ровной tempo-сетке и выбираем шаг 1..4 бита по весам.
-    Это даёт разную длину клипов и сохраняет попадание в темп.
     """
     rng = np.random.default_rng(seed)
 
@@ -137,8 +134,7 @@ def build_cuts_from_grid(grid_times, min_cut, beat_weights=(55, 30, 12, 3), seed
     w = np.array(beat_weights, dtype=float)
     w = w / w.sum()
 
-    # grid_times содержит 0 и конец
-    beats = [float(t) for t in grid_times[1:-1]]  # внутренние биты
+    beats = [float(t) for t in grid_times[1:-1]]
     end = float(grid_times[-1])
 
     cuts = [0.0]
@@ -162,6 +158,147 @@ def build_cuts_from_grid(grid_times, min_cut, beat_weights=(55, 30, 12, 3), seed
     if cuts[-1] < end - 0.01:
         cuts.append(end)
     return cuts
+# ------------------------------------------------------
+
+
+# ---------- NEW: transient peaks + snap ----------
+def detect_transient_peaks(
+    audio_path: str,
+    sr: int,
+    start_offset: float = 0.0,
+    hop_length: int = 512,
+    use_hpss_percussive: bool = True,
+):
+    """
+    Возвращает:
+      peak_times_sec: np.array shape (N,)
+      peak_strengths: np.array shape (N,)
+    Детектим пики транзиентов (onset) по перкуссионной составляющей.
+    """
+    y, _ = librosa.load(audio_path, sr=sr, mono=True)
+
+    if use_hpss_percussive:
+        # перкуссия лучше соответствует "пикам" на waveform (удары)
+        _, y = librosa.effects.hpss(y)
+
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length)
+
+    # peak picking: достаточно устойчивые настройки под разные треки
+    peaks = librosa.util.peak_pick(
+        onset_env,
+        pre_max=3, post_max=3,
+        pre_avg=6, post_avg=6,
+        delta=0.2,
+        wait=3
+    )
+
+    peak_strengths = onset_env[peaks] if len(peaks) else np.array([], dtype=float)
+    peak_times = librosa.frames_to_time(peaks, sr=sr, hop_length=hop_length) + float(start_offset)
+
+    # чистим
+    peak_times = peak_times[peak_times > 0]
+    if len(peak_times):
+        # синхронизируем strengths по тем же индексам
+        # (peaks уже по onset_env; frame->time не меняет длину)
+        pass
+
+    del y, onset_env, peaks
+    gc.collect()
+
+    return np.asarray(peak_times, dtype=float), np.asarray(peak_strengths, dtype=float)
+
+
+def snap_cuts_to_peaks(
+    cuts: list[float],
+    peak_times: np.ndarray,
+    peak_strengths: np.ndarray,
+    win_before: float,
+    win_after: float,
+    strength_percentile: float = 65.0,
+    keep_min_gap: float | None = None
+):
+    """
+    Сдвигаем каждый рез (кроме 0 и конца) к самому сильному пику в окне:
+      [cut - win_before, cut + win_after]
+    Если пики слабые — не двигаем (порог по перцентилю силы).
+    """
+    if not cuts or len(cuts) < 3:
+        return cuts
+
+    if peak_times is None or len(peak_times) == 0:
+        return cuts
+
+    win_before = max(0.0, float(win_before))
+    win_after = max(0.0, float(win_after))
+    if win_before == 0.0 and win_after == 0.0:
+        return cuts
+
+    # порог силы (чтобы не липло к шуму)
+    thr = None
+    if peak_strengths is not None and len(peak_strengths) == len(peak_times) and len(peak_strengths) > 0:
+        p = float(np.clip(strength_percentile, 0.0, 100.0))
+        thr = float(np.percentile(peak_strengths, p))
+    else:
+        thr = None  # нет сил — снапаем без порога
+
+    snapped = [float(cuts[0])]
+    end = float(cuts[-1])
+
+    # для быстрого поиска по окну
+    pt = peak_times
+    ps = peak_strengths if (peak_strengths is not None and len(peak_strengths) == len(pt)) else None
+
+    for c in cuts[1:-1]:
+        c = float(c)
+        lo = c - win_before
+        hi = c + win_after
+
+        # индексы пиков в окне
+        i0 = int(np.searchsorted(pt, lo, side="left"))
+        i1 = int(np.searchsorted(pt, hi, side="right"))
+
+        if i1 <= i0:
+            snapped.append(c)
+            continue
+
+        window_times = pt[i0:i1]
+        if ps is not None:
+            window_strengths = ps[i0:i1]
+            j = int(np.argmax(window_strengths))
+            best_t = float(window_times[j])
+            best_s = float(window_strengths[j])
+            if thr is None or best_s >= thr:
+                snapped.append(best_t)
+            else:
+                snapped.append(c)
+        else:
+            # нет strengths — берём ближайший по времени
+            j = int(np.argmin(np.abs(window_times - c)))
+            snapped.append(float(window_times[j]))
+
+    snapped.append(end)
+
+    # нормализуем, сортируем, убираем дубли
+    snapped = sorted(set(np.round(snapped, 4).tolist()))
+
+    # защита от слишком близких резов после снапа
+    if keep_min_gap is not None and keep_min_gap > 0 and len(snapped) >= 3:
+        filtered = [snapped[0]]
+        last = snapped[0]
+        for t in snapped[1:-1]:
+            if float(t) - float(last) >= float(keep_min_gap):
+                filtered.append(float(t))
+                last = float(t)
+        filtered.append(snapped[-1])
+        snapped = filtered
+
+    # гарантируем 0 и end
+    if snapped[0] != 0.0:
+        snapped.insert(0, 0.0)
+    if snapped[-1] < end - 0.01:
+        snapped.append(end)
+
+    return snapped
 # ------------------------------------------------------
 
 
@@ -213,7 +350,10 @@ def rebuild_timeline(
     mode: str,
     beat_weights: tuple[int, int, int, int],
     seed: int | None,
-    grid_offset: float
+    grid_offset: float,
+    transient_before: float,
+    transient_after: float,
+    transient_strength_percentile: float
 ):
     timeline = otio.adapters.read_from_file(input_otio)
     if not isinstance(timeline, otio.schema.Timeline):
@@ -232,10 +372,26 @@ def rebuild_timeline(
             beat_times, music_duration, min_cut=min_cut, beat_step=beat_step
         )
     else:
-        # ✅ новый правильный var: сначала строим tempo grid, потом режем по ней
         grid = make_tempo_grid(beat_times, music_duration, tempo, grid_offset=grid_offset)
         cuts = build_cuts_from_grid(
             grid, min_cut=min_cut, beat_weights=beat_weights, seed=seed
+        )
+
+    # ✅ NEW: snap cuts to transient peaks (если окно задано)
+    if (transient_before > 0.0 or transient_after > 0.0) and len(cuts) >= 3:
+        peak_times, peak_strengths = detect_transient_peaks(
+            music_mp3, sr=sr, start_offset=beat_offset, hop_length=512, use_hpss_percussive=True
+        )
+        # keep_min_gap чуть меньше min_cut, чтобы снап не рушил ритм
+        keep_gap = max(0.04, float(min_cut) * 0.6)
+        cuts = snap_cuts_to_peaks(
+            cuts,
+            peak_times=peak_times,
+            peak_strengths=peak_strengths,
+            win_before=transient_before,
+            win_after=transient_after,
+            strength_percentile=transient_strength_percentile,
+            keep_min_gap=keep_gap
         )
 
     segments = [(cuts[i], cuts[i + 1]) for i in range(len(cuts) - 1)]
@@ -319,6 +475,20 @@ def _apply_settings_to_args(settings: dict, args: argparse.Namespace) -> None:
         except Exception:
             pass
 
+    # ✅ NEW: transient window from UI: [ct_min, ct_max]  (оба положительные)
+    clip_transient = ae.get("clip_transient")
+    if isinstance(clip_transient, (list, tuple)) and len(clip_transient) == 2:
+        try:
+            tmin = float(clip_transient[0])
+            tmax = float(clip_transient[1])
+            # адекватные клампы, чтобы не улетало
+            tmin = float(np.clip(tmin, 0.0, 1.0))
+            tmax = float(np.clip(tmax, 0.0, 1.5))
+            args.transient_before = tmin
+            args.transient_after = tmax
+        except Exception:
+            pass
+
     if "beat_step" in ae:
         try:
             args.beat_step = int(ae["beat_step"])
@@ -359,6 +529,13 @@ def _apply_settings_to_args(settings: dict, args: argparse.Namespace) -> None:
         except Exception:
             pass
 
+    # опционально: порог силы (если захочешь менять из UI потом)
+    if "transient_strength_percentile" in ae:
+        try:
+            args.transient_strength_percentile = float(ae["transient_strength_percentile"])
+        except Exception:
+            pass
+
 
 def _parse_weights(s: str):
     parts = [p.strip() for p in s.split(",") if p.strip()]
@@ -392,8 +569,14 @@ def main():
     ap.add_argument("--beat_weights", default="55,30,12,3", help="var mode weights for steps 1..4 beats")
     ap.add_argument("--seed", type=int, default=7, help="var mode: set seed for repeatable results")
 
-    # ✅ NEW: offset for tempo grid (подгонка на 1–2 кадра)
+    # tempo grid offset
     ap.add_argument("--grid_offset", type=float, default=0.0, help="var mode: shift tempo grid in seconds (+/-)")
+
+    # ✅ NEW: transient snap window (seconds)
+    ap.add_argument("--transient_before", type=float, default=0.08, help="snap window BEFORE cut (sec)")
+    ap.add_argument("--transient_after", type=float, default=0.12, help="snap window AFTER cut (sec)")
+    ap.add_argument("--transient_strength_percentile", type=float, default=65.0,
+                    help="snap only to peaks above this strength percentile (0..100)")
 
     ap.add_argument("--settings", default=None, help="path to settings.json (optional)")
     args = ap.parse_args()
@@ -409,6 +592,11 @@ def main():
         args.sr = 11025
     if args.beat_step <= 0:
         args.beat_step = 1
+
+    # клампы окон снапа
+    args.transient_before = float(np.clip(args.transient_before, 0.0, 1.0))
+    args.transient_after = float(np.clip(args.transient_after, 0.0, 1.5))
+    args.transient_strength_percentile = float(np.clip(args.transient_strength_percentile, 0.0, 100.0))
 
     beat_weights = _parse_weights(args.beat_weights)
 
@@ -427,11 +615,15 @@ def main():
         beat_weights=beat_weights,
         seed=args.seed,
         grid_offset=args.grid_offset,
+        transient_before=args.transient_before,
+        transient_after=args.transient_after,
+        transient_strength_percentile=args.transient_strength_percentile
     )
 
     print(f"Done. Saved: {args.out}")
     print(f"Audio duration: {dur:.2f}s | Segments: {n_segments} | Tempo≈{tempo:.2f} BPM")
     print(f"Mode: {args.mode} | min_cut={args.min_cut:.2f}s | weights={beat_weights} | seed={args.seed} | grid_offset={args.grid_offset}")
+    print(f"Transient snap: before={args.transient_before:.3f}s after={args.transient_after:.3f}s thrP={args.transient_strength_percentile:.1f}")
 
 
 if __name__ == "__main__":
