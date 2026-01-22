@@ -40,16 +40,108 @@ def home():
     .row { display:flex; gap:12px; }
     .row > div { flex:1; }
     .small { font-weight: 400; color:#666; font-size: 12px; }
-    .presetbar { display:flex; gap:10px; margin-top:10px; }
-    .presetbar button { width:auto; flex:1; padding:10px; border-radius:10px; border:1px solid #ddd; background:#f7f7f7; }
-    .presetbar button.active { background:#111; color:#fff; border-color:#111; }
-    .note { color:#555; font-size: 13px; margin: 8px 0 0; }
-    hr { margin:16px 0; }
+
+    details.help { margin-bottom: 16px; background:#f7f7f7; border:1px solid #e3e3e3; border-radius:12px; padding: 12px 14px; }
+    details.help summary { cursor:pointer; font-weight: 800; }
+    details.help summary::-webkit-details-marker { display:none; }
+    details.help summary::before { content: "▶ "; }
+    details.help[open] summary::before { content: "▼ "; }
+    details.help h4 { margin: 12px 0 6px; }
+    details.help p, details.help li { line-height: 1.4; }
+    details.help ul { margin: 6px 0 10px 18px; }
+    .tag { display:inline-block; padding: 2px 8px; border-radius: 999px; background:#fff; border:1px solid #ddd; font-size: 12px; margin: 2px 6px 2px 0; }
+    .note { color:#555; font-size: 13px; margin: 6px 0; }
+    .warn { color:#7a4a00; font-size: 13px; margin: 6px 0; }
+
   </style>
 </head>
 <body>
   <h2>DaVinci OTIO Beat Cutter</h2>
   <div class="card">
+
+    <details class="help">
+      <summary>Памятка: как это работает и что делают настройки</summary>
+
+      <h4>Как работает сервис</h4>
+      <ul>
+        <li>Загрузи <b>OTIO</b> (таймлайн из DaVinci Resolve) и <b>MP3/WAV</b> (музыку).</li>
+        <li>Сервис анализирует трек, находит точки ритма и пересобирает таймлайн так, чтобы <b>склейки попадали в ритм</b>.</li>
+        <li>На выходе ты скачиваешь новый <b>.otio</b> и открываешь его в Resolve.</li>
+      </ul>
+
+      <h4>Настройки монтажа</h4>
+
+      <p><span class="tag">Автомонтаж под музыку</span><br>
+      Если выключить — сервис почти ничего не будет менять (оставь включённым для нормальной работы).</p>
+
+      <p><span class="tag">Длина клипа MIN / MAX</span><br>
+      Ограничивает длительность каждого фрагмента на таймлайне.</p>
+      <ul>
+        <li><b>MIN</b> — защита от слишком коротких “морганий”.</li>
+        <li><b>MAX</b> — защита от слишком длинных кусков.</li>
+      </ul>
+
+      <p><span class="tag">Поиск транзиента MIN / MAX</span><br>
+      Окно, в котором сервис может “подвинуть” точку склейки к ближайшему транзиенту (резкому удару/акценту).</p>
+      <ul>
+        <li><b>MIN</b> — насколько рано можно искать транзиент.</li>
+        <li><b>MAX</b> — насколько поздно можно искать транзиент.</li>
+      </ul>
+
+      <p><span class="tag">Аудио-детектор</span><br>
+      Чем анализировать музыку (детектор ударов).</p>
+      <p class="warn"><b>Важно:</b> в текущей сборке реально используется режим на базе librosa; вариант “aubio” может не работать, если библиотека не установлена на сервере.</p>
+
+      <p><span class="tag">Если клип короткий</span><br>
+      Что делать, если получившийся фрагмент меньше MIN.</p>
+      <ul>
+        <li><b>удалить</b> — выкинуть слишком короткий кусок.</li>
+        <li><b>оставить</b> — оставить как есть (может “мелькать”).</li>
+      </ul>
+
+      <p><span class="tag">Если клип длинный</span><br>
+      Что делать, если кусок получился слишком длинным.</p>
+      <ul>
+        <li><b>порезать</b> — разбить на несколько кусков.</li>
+        <li><b>удалить</b> — выкинуть длинный кусок.</li>
+      </ul>
+
+      <p><span class="tag">Shuffle (%)</span><br>
+      Перемешивает порядок клипов (в процентах). 0% — не перемешивать.</p>
+
+      <p><span class="tag">Shuffle после нарезки длинных (%)</span><br>
+      Дополнительное перемешивание после того, как длинные куски были порезаны.</p>
+
+      <p class="note">
+        Подсказка: если “вроде попадает, но чуть мимо”, обычно помогает тонкая подстройка сетки (grid/beat offset). Если у тебя эти регуляторы включены — начни с ±20–40 мс.
+      </p>
+
+      <h4>Ретайм (ускорение/замедление)</h4>
+      <p><span class="tag">Включить ретайм</span><br>
+      Иногда ускоряет/замедляет клипы, чтобы визуально плотнее ложились в ритм.</p>
+
+      <p><span class="tag">Вероятность ретайма (%)</span><br>
+      Не все клипы будут менять скорость. Например, 30% ≈ каждый третий.</p>
+
+      <p><span class="tag">Retime factor MIN / MAX</span><br>
+      Диапазон скорости (в процентах):</p>
+      <ul>
+        <li>50 = 0.5× (замедление)</li>
+        <li>100 = 1.0× (норма)</li>
+        <li>150 = 1.5× (ускорение)</li>
+      </ul>
+
+      <p><span class="tag">Алгоритм ретайма</span><br>
+      Способ интерполяции/пересчёта кадров (если поддерживается монтажкой).</p>
+
+      <p><span class="tag">Не трогать клипы с уже заданной скоростью</span><br>
+      Если клип уже ускорен/замедлен вручную — пропустить его.</p>
+
+      <p><span class="tag">Применять к аудио</span><br>
+      Если ускоряем/замедляем клип — пытаться менять скорость привязанного аудио.</p>
+
+      <p class="warn"><b>Примечание:</b> если в твоей версии сборщик OTIO ещё не применяет ретайм на дорожке, этот блок будет “памяткой на будущее”. Можем включить реальный ретайм в OTIO отдельным апдейтом.</p>
+    </details>
 
     <form id="beatForm" action="/process" method="post" enctype="multipart/form-data">
       <label>OTIO файл (timeline.otio)</label>
@@ -70,16 +162,6 @@ def home():
         Автомонтаж под музыку
       </label>
 
-      <label>Пресет точности транзиентов (одной кнопкой)</label>
-      <div class="presetbar">
-        <button type="button" id="preset_soft">Soft</button>
-        <button type="button" id="preset_bal" class="active">Balanced</button>
-        <button type="button" id="preset_agg">Aggressive</button>
-      </div>
-      <div class="note">
-        Soft — мягко, меньше прыжков • Balanced — универсально • Aggressive — цепляется за самые жирные удары
-      </div>
-
       <div class="row">
         <div>
           <label>Длина клипа MIN (сек)</label>
@@ -96,13 +178,13 @@ def home():
       <div class="row">
         <div>
           <label>Поиск транзиента MIN (сек)</label>
-          <input type="range" id="ct_min" min="0.00" max="0.50" step="0.01" value="0.08" />
-          <div class="small">Текущее: <span id="ct_min_v">0.08</span></div>
+          <input type="range" id="ct_min" min="0.2" max="5" step="0.1" value="0.4" />
+          <div class="small">Текущее: <span id="ct_min_v">0.4</span></div>
         </div>
         <div>
           <label>Поиск транзиента MAX (сек)</label>
-          <input type="range" id="ct_max" min="0.00" max="0.50" step="0.01" value="0.12" />
-          <div class="small">Текущее: <span id="ct_max_v">0.12</span></div>
+          <input type="range" id="ct_max" min="0.2" max="5" step="0.1" value="2.1" />
+          <div class="small">Текущее: <span id="ct_max_v">2.1</span></div>
         </div>
       </div>
 
@@ -174,13 +256,14 @@ def home():
         Применять к аудио
       </label>
 
+      <!-- Скрытое поле, куда кладём JSON -->
       <input type="hidden" name="settings" id="settings_json" />
 
       <button type="submit">Смонтировать и скачать OTIO</button>
     </form>
 
     <div class="hint">
-      Если нужно «прям в удар» — жми Aggressive, и держи MIN/MAX транзиента в районе 0.12–0.18.
+      После нажатия подожди: обработка зависит от длины трека.
     </div>
   </div>
 
@@ -196,44 +279,6 @@ def home():
   ["cd_min","cd_max","ct_min","ct_max","shuffle","shuffle_long","rt_prob","rt_min","rt_max"].forEach(id => {
     bindRange(id, id + "_v");
   });
-
-  // --- presets ---
-  let transientStrengthP = 75; // Balanced default
-
-  function setPreset(name) {
-    const bSoft = document.getElementById("preset_soft");
-    const bBal  = document.getElementById("preset_bal");
-    const bAgg  = document.getElementById("preset_agg");
-    [bSoft, bBal, bAgg].forEach(b => b.classList.remove("active"));
-
-    if (name === "soft") {
-      bSoft.classList.add("active");
-      ct_min.value = "0.05";
-      ct_max.value = "0.09";
-      transientStrengthP = 65;
-    } else if (name === "agg") {
-      bAgg.classList.add("active");
-      ct_min.value = "0.12";
-      ct_max.value = "0.18";
-      transientStrengthP = 90;
-    } else {
-      bBal.classList.add("active");
-      ct_min.value = "0.08";
-      ct_max.value = "0.12";
-      transientStrengthP = 75;
-    }
-
-    // обновим подписи
-    document.getElementById("ct_min_v").textContent = ct_min.value;
-    document.getElementById("ct_max_v").textContent = ct_max.value;
-  }
-
-  preset_soft.addEventListener("click", () => setPreset("soft"));
-  preset_bal.addEventListener("click", () => setPreset("bal"));
-  preset_agg.addEventListener("click", () => setPreset("agg"));
-
-  // init: balanced
-  setPreset("bal");
 
   document.getElementById("beatForm").addEventListener("submit", (e) => {
     const cdMin = parseFloat(cd_min.value), cdMax = parseFloat(cd_max.value);
@@ -251,7 +296,6 @@ def home():
         f_enabled: ae_enabled.checked,
         clip_duration: [cdMin, cdMax],
         clip_transient: [ctMin, ctMax],
-        transient_strength_percentile: transientStrengthP,
         audio_lib: audio_lib.value,
         if_short_clip: if_short.value,
         if_long_clip: if_long.value,
@@ -286,7 +330,7 @@ async def process(
     timeline: UploadFile = File(...),
     music: UploadFile = File(...),
     fps: int = Form(25),
-    settings: str = Form(None),
+    settings: str = Form(None),  # ✅ добавили
 ):
     result = None
     try:
@@ -300,6 +344,7 @@ async def process(
             await save_uploadfile(music, in_mp3)
             gc.collect()
 
+            # ✅ сохраняем settings в файл (если пришли)
             settings_path = tmp_path / "settings.json"
             settings_obj = {}
             if settings:
@@ -320,6 +365,7 @@ async def process(
                 "--grid_offset", "0.02",
             ]
 
+            # ✅ передаём settings только если они есть
             if settings_obj:
                 cmd += ["--settings", str(settings_path)]
 
