@@ -40,11 +40,109 @@ def home():
     .row { display:flex; gap:12px; }
     .row > div { flex:1; }
     .small { font-weight: 400; color:#666; font-size: 12px; }
+
+    details.help { margin-bottom: 16px; background:#f7f7f7; border:1px solid #e3e3e3; border-radius:12px; padding: 12px 14px; }
+    details.help summary { cursor:pointer; font-weight: 800; }
+    details.help summary::-webkit-details-marker { display:none; }
+    details.help summary::before { content: "▶ "; }
+    details.help[open] summary::before { content: "▼ "; }
+    details.help h4 { margin: 12px 0 6px; }
+    details.help p, details.help li { line-height: 1.4; }
+    details.help ul { margin: 6px 0 10px 18px; }
+    .tag { display:inline-block; padding: 2px 8px; border-radius: 999px; background:#fff; border:1px solid #ddd; font-size: 12px; margin: 2px 6px 2px 0; }
+    .note { color:#555; font-size: 13px; margin: 6px 0; }
+    .warn { color:#7a4a00; font-size: 13px; margin: 6px 0; }
+
   </style>
 </head>
 <body>
   <h2>DaVinci OTIO Beat Cutter</h2>
   <div class="card">
+
+    <details class="help">
+      <summary>Памятка: как это работает и что делают настройки</summary>
+
+      <h4>Как работает сервис</h4>
+      <ul>
+        <li>Загрузи <b>OTIO</b> (таймлайн из DaVinci Resolve) и <b>MP3/WAV</b> (музыку).</li>
+        <li>Сервис анализирует трек, находит точки ритма и пересобирает таймлайн так, чтобы <b>склейки попадали в ритм</b>.</li>
+        <li>На выходе ты скачиваешь новый <b>.otio</b> и открываешь его в Resolve.</li>
+      </ul>
+
+      <h4>Настройки монтажа</h4>
+
+      <p><span class="tag">Автомонтаж под музыку</span><br>
+      Если выключить — сервис почти ничего не будет менять (оставь включённым для нормальной работы).</p>
+
+      <p><span class="tag">Длина клипа MIN / MAX</span><br>
+      Ограничивает длительность каждого фрагмента на таймлайне.</p>
+      <ul>
+        <li><b>MIN</b> — защита от слишком коротких “морганий”.</li>
+        <li><b>MAX</b> — защита от слишком длинных кусков.</li>
+      </ul>
+
+      <p><span class="tag">Поиск транзиента MIN / MAX</span><br>
+      Окно, в котором сервис может “подвинуть” точку склейки к ближайшему транзиенту (резкому удару/акценту).</p>
+      <ul>
+        <li><b>MIN</b> — насколько рано можно искать транзиент.</li>
+        <li><b>MAX</b> — насколько поздно можно искать транзиент.</li>
+      </ul>
+
+      <p><span class="tag">Аудио-детектор</span><br>
+      Чем анализировать музыку (детектор ударов).</p>
+      <p class="warn"><b>Важно:</b> в текущей сборке реально используется режим на базе librosa; вариант “aubio” может не работать, если библиотека не установлена на сервере.</p>
+
+      <p><span class="tag">Если клип короткий</span><br>
+      Что делать, если получившийся фрагмент меньше MIN.</p>
+      <ul>
+        <li><b>удалить</b> — выкинуть слишком короткий кусок.</li>
+        <li><b>оставить</b> — оставить как есть (может “мелькать”).</li>
+      </ul>
+
+      <p><span class="tag">Если клип длинный</span><br>
+      Что делать, если кусок получился слишком длинным.</p>
+      <ul>
+        <li><b>порезать</b> — разбить на несколько кусков.</li>
+        <li><b>удалить</b> — выкинуть длинный кусок.</li>
+      </ul>
+
+      <p><span class="tag">Shuffle (%)</span><br>
+      Перемешивает порядок клипов (в процентах). 0% — не перемешивать.</p>
+
+      <p><span class="tag">Shuffle после нарезки длинных (%)</span><br>
+      Дополнительное перемешивание после того, как длинные куски были порезаны.</p>
+
+      <p class="note">
+        Подсказка: если “вроде попадает, но чуть мимо”, обычно помогает тонкая подстройка сетки (grid/beat offset). Если у тебя эти регуляторы включены — начни с ±20–40 мс.
+      </p>
+
+      <h4>Ретайм (ускорение/замедление)</h4>
+      <p><span class="tag">Включить ретайм</span><br>
+      Иногда ускоряет/замедляет клипы, чтобы визуально плотнее ложились в ритм.</p>
+
+      <p><span class="tag">Вероятность ретайма (%)</span><br>
+      Не все клипы будут менять скорость. Например, 30% ≈ каждый третий.</p>
+
+      <p><span class="tag">Retime factor MIN / MAX</span><br>
+      Диапазон скорости (в процентах):</p>
+      <ul>
+        <li>50 = 0.5× (замедление)</li>
+        <li>100 = 1.0× (норма)</li>
+        <li>150 = 1.5× (ускорение)</li>
+      </ul>
+
+      <p><span class="tag">Алгоритм ретайма</span><br>
+      Способ интерполяции/пересчёта кадров (если поддерживается монтажкой).</p>
+
+      <p><span class="tag">Не трогать клипы с уже заданной скоростью</span><br>
+      Если клип уже ускорен/замедлен вручную — пропустить его.</p>
+
+      <p><span class="tag">Применять к аудио</span><br>
+      Если ускоряем/замедляем клип — пытаться менять скорость привязанного аудио.</p>
+
+      <p class="warn"><b>Примечание:</b> если в твоей версии сборщик OTIO ещё не применяет ретайм на дорожке, этот блок будет “памяткой на будущее”. Можем включить реальный ретайм в OTIO отдельным апдейтом.</p>
+    </details>
+
     <form id="beatForm" action="/process" method="post" enctype="multipart/form-data">
       <label>OTIO файл (timeline.otio)</label>
       <input type="file" name="timeline" accept=".otio" required />
@@ -95,18 +193,6 @@ def home():
         <option value="librosa_def" selected>librosa (обычно)</option>
         <option value="aubio_def">aubio (если плохо ловит)</option>
       </select>
-
-      <hr>
-      <h3>Акценты (сильные / слабые биты)</h3>
-
-      <label>
-        <input type="checkbox" id="strong_only" />
-        Резать только по сильным ударам (пики)
-      </label>
-
-      <label>Порог силы (0.0–1.0)</label>
-      <input type="range" id="strong_thr" min="0" max="1" step="0.05" value="0.7" />
-      <div class="small">Текущее: <span id="strong_thr_v">0.7</span></div>
 
       <label>Если клип короткий</label>
       <select id="if_short">
@@ -190,7 +276,7 @@ def home():
     upd();
   }
 
-  ["cd_min","cd_max","ct_min","ct_max","shuffle","shuffle_long","strong_thr","rt_prob","rt_min","rt_max"].forEach(id => {
+  ["cd_min","cd_max","ct_min","ct_max","shuffle","shuffle_long","rt_prob","rt_min","rt_max"].forEach(id => {
     bindRange(id, id + "_v");
   });
 
@@ -216,9 +302,7 @@ def home():
         shuffle: parseInt(shuffle.value, 10),
         shuffle_long: parseInt(shuffle_long.value, 10),
         video_track_name: "vid1",
-        audio_track_name: "aud1",
-        strong_only: strong_only.checked,
-        strong_threshold: parseFloat(strong_thr.value)
+        audio_track_name: "aud1"
       },
       retime_simple: {
         f_enabled: rt_enabled.checked,
