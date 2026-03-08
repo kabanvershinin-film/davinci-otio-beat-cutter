@@ -149,11 +149,15 @@ h1 .line2 {
   border-radius: 50%; filter: blur(60px);
   opacity: .06; pointer-events: none;
 }
-.plan:hover { transform: translateY(-6px); border-color: var(--pc, var(--cyan)); box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+.plan:hover { transform: translateY(-6px); border-color: var(--pc, var(--cyan)); box-shadow: 0 0 80px rgba(var(--pc-rgb, 0,232,216), 0.35), 0 20px 60px rgba(0,0,0,.4); }
+.plan[style*="#3b82f6"]:hover { box-shadow: 0 0 80px rgba(59,130,246,.35), 0 20px 60px rgba(0,0,0,.4); }
+.plan[style*="#a855f7"]:hover { box-shadow: 0 0 80px rgba(168,85,247,.35), 0 20px 60px rgba(0,0,0,.4); }
+.plan[style*="#f0b429"]:hover { box-shadow: 0 0 80px rgba(240,180,41,.35), 0 20px 60px rgba(0,0,0,.4); }
+.plan.featured:hover { transform: translateY(-6px); border-color: var(--cyan); box-shadow: 0 0 80px rgba(0,232,216,.35), 0 20px 60px rgba(0,0,0,.4); }
 .plan.featured {
   background: linear-gradient(160deg, #0f1c28 0%, var(--surface) 60%);
-  border-color: var(--cyan);
-  box-shadow: 0 0 60px rgba(0,232,216,.08);
+  border-color: var(--border);
+  box-shadow: none;
 }
 .plan-badge {
   position: absolute; top: 20px; right: 20px;
@@ -544,5 +548,65 @@ document.querySelectorAll('.plan').forEach((el, i) => {
   obs.observe(el);
 });
 </script>
+
+<!-- ROBOT -->
+<div id="robot-wrap" style="position:fixed;bottom:20px;right:20px;z-index:9999;pointer-events:none;transition:transform 0.3s ease;">
+  <video id="robot-video" src="robot.mp4" autoplay muted loop playsinline
+    style="width:120px;height:120px;object-fit:cover;border-radius:16px;filter:drop-shadow(0 0 12px rgba(0,232,216,0.5));"></video>
+  <div id="robot-bubble" style="
+    position:absolute;bottom:125px;right:0;
+    background:rgba(4,6,10,0.9);border:1px solid rgba(0,232,216,0.4);
+    border-radius:12px;padding:8px 12px;
+    font-size:12px;color:#00e8d8;white-space:nowrap;
+    opacity:0;transition:opacity 0.3s;
+    font-family:'DM Sans',sans-serif;
+  ">Попробуй нажать! 👆</div>
+</div>
+
+<script>
+(function() {
+  const wrap = document.getElementById('robot-wrap');
+  const bubble = document.getElementById('robot-bubble');
+  let idleTimer;
+
+  // Показываем пузырь когда мышь не двигается 3 сек
+  function resetIdle() {
+    clearTimeout(idleTimer);
+    bubble.style.opacity = '0';
+    idleTimer = setTimeout(() => {
+      bubble.style.opacity = '1';
+    }, 3000);
+  }
+
+  // Робот слегка поворачивается в сторону курсора
+  document.addEventListener('mousemove', (e) => {
+    resetIdle();
+    const rect = wrap.getBoundingClientRect();
+    const robotX = rect.left + rect.width / 2;
+    const robotY = rect.top + rect.height / 2;
+    const dx = e.clientX - robotX;
+    const dy = e.clientY - robotY;
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    
+    // Легкий наклон в сторону курсора (ограничен)
+    const tilt = Math.max(-15, Math.min(15, dx / 50));
+    wrap.style.transform = `rotate(${tilt}deg)`;
+  });
+
+  // При клике робот подпрыгивает
+  document.addEventListener('click', () => {
+    wrap.style.transform = 'translateY(-20px) scale(1.1)';
+    bubble.style.opacity = '1';
+    bubble.textContent = '🚀 Поехали!';
+    setTimeout(() => {
+      wrap.style.transform = 'translateY(0) scale(1)';
+      bubble.textContent = 'Попробуй нажать! 👆';
+    }, 400);
+  });
+
+  resetIdle();
+})();
+</script>
+
 </body>
 </html>
