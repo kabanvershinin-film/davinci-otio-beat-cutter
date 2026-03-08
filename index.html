@@ -125,7 +125,7 @@ h1 .line2 {
 .section-sub { color: var(--muted); font-size: 15px; margin-bottom: 48px; font-weight: 300; }
 
 /* PRICING */
-.pricing-section { padding: 100px 0; border-top: 1px solid var(--border); }
+.pricing-section { padding: 100px 0; border-top: 1px solid var(--border); position: relative; overflow: hidden; }
 .pricing-header { text-align: center; margin-bottom: 60px; }
 .plans { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; align-items: start; }
 
@@ -299,7 +299,11 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px;
 </section>
 
 <section class="pricing-section" id="pricing">
-  <div class="wrap">
+  <video style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:0.12;pointer-events:none;" autoplay muted loop playsinline>
+    <source src="bg2.mp4" type="video/mp4">
+  </video>
+  <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(to bottom,rgba(4,6,10,0.5) 0%,rgba(4,6,10,0.8) 100%);z-index:1;"></div>
+  <div class="wrap" style="position:relative;z-index:2;">
     <div class="pricing-header">
       <div class="section-label">Пополнение баланса</div>
       <div class="section-title">Тарифы</div>
@@ -376,6 +380,7 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px;
       </div>
 
     </div>
+  </div>
   </div>
 </section>
 
