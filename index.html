@@ -1,139 +1,445 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>DaVinci OTIO Beat Cutter</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElSpy AI — Тарифы и Модели</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #04060a;
+  --surface: #0b0f17;
+  --surface2: #111620;
+  --border: #1c2333;
+  --cyan: #00e8d8;
+  --blue: #3b82f6;
+  --gold: #f0b429;
+  --text: #dde2ed;
+  --muted: #5a6380;
+  --faint: #1a2035;
+}
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,232,216,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,232,216,0.035) 1px, transparent 1px);
+  background-size: 80px 80px;
+  pointer-events: none;
+  z-index: 0;
+}
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 28px; position: relative; z-index: 1; }
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(4,6,10,0.9);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 0;
+}
+.nav-inner { display: flex; align-items: center; justify-content: space-between; }
+.nav-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px; letter-spacing: 3px;
+  background: linear-gradient(135deg, var(--cyan), var(--blue));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.nav-links { display: flex; gap: 32px; list-style: none; }
+.nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; transition: color .2s; }
+.nav-links a:hover { color: var(--cyan); }
+.nav-cta { background: var(--cyan) !important; color: var(--bg) !important; padding: 8px 20px; border-radius: 8px; font-weight: 600 !important; }
+
+/* HERO */
+.hero { padding: 100px 0 80px; text-align: center; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--faint); border: 1px solid var(--border);
+  border-radius: 100px; padding: 6px 16px;
+  font-family: 'DM Mono', monospace; font-size: 12px; color: var(--cyan);
+  margin-bottom: 28px; letter-spacing: 1px;
+}
+.hero-badge::before {
+  content: ''; width: 6px; height: 6px;
+  background: var(--cyan); border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(64px, 10vw, 130px);
+  line-height: .9; letter-spacing: 4px; margin-bottom: 24px;
+}
+h1 .line1 { color: #fff; display: block; }
+h1 .line2 {
+  display: block;
+  background: linear-gradient(90deg, var(--cyan) 0%, var(--blue) 50%, var(--gold) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.hero-sub { font-size: 18px; color: var(--muted); max-width: 520px; margin: 0 auto 48px; line-height: 1.65; font-weight: 300; }
+.hero-btn {
+  display: inline-block;
+  background: var(--cyan); color: var(--bg);
+  padding: 14px 36px; border-radius: 12px;
+  font-weight: 700; font-size: 16px; text-decoration: none;
+  transition: opacity .2s, transform .2s; margin-bottom: 60px;
+}
+.hero-btn:hover { opacity: .85; transform: translateY(-2px); }
+.hero-stats {
+  display: inline-flex;
+  border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+}
+.hero-stat { padding: 20px 40px; border-right: 1px solid var(--border); text-align: center; }
+.hero-stat:last-child { border-right: none; }
+.hero-stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 40px; letter-spacing: 2px; color: var(--cyan); line-height: 1; }
+.hero-stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin-top: 4px; }
+
+/* SECTION */
+.section-label { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--cyan); margin-bottom: 12px; }
+.section-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(36px,5vw,56px); letter-spacing: 2px; line-height: 1; margin-bottom: 8px; }
+.section-sub { color: var(--muted); font-size: 15px; margin-bottom: 48px; font-weight: 300; }
+
+/* PRICING */
+.pricing-section { padding: 100px 0; border-top: 1px solid var(--border); }
+.pricing-header { text-align: center; margin-bottom: 60px; }
+.plans { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; align-items: start; }
+
+.plan {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px; padding: 32px 24px;
+  position: relative; overflow: hidden;
+  transition: transform .3s, border-color .3s, box-shadow .3s;
+}
+.plan::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: var(--pc, var(--cyan));
+}
+.plan-glow {
+  position: absolute; top: -60px; left: 50%;
+  transform: translateX(-50%);
+  width: 160px; height: 160px;
+  background: var(--pc, var(--cyan));
+  border-radius: 50%; filter: blur(60px);
+  opacity: .06; pointer-events: none;
+}
+.plan:hover { transform: translateY(-6px); border-color: var(--pc, var(--cyan)); box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+.plan.featured {
+  background: linear-gradient(160deg, #0f1c28 0%, var(--surface) 60%);
+  border-color: var(--cyan);
+  box-shadow: 0 0 60px rgba(0,232,216,.08);
+}
+.plan-badge {
+  position: absolute; top: 20px; right: 20px;
+  background: var(--pc, var(--cyan)); color: var(--bg);
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  padding: 4px 10px; border-radius: 100px; letter-spacing: 1px; text-transform: uppercase;
+}
+.plan-tier { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--pc, var(--cyan)); margin-bottom: 6px; }
+.plan-name { font-family: 'Bebas Neue', sans-serif; font-size: 36px; letter-spacing: 2px; margin-bottom: 20px; color: #fff; }
+.plan-price { display: flex; align-items: baseline; gap: 4px; margin-bottom: 6px; }
+.plan-amount { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 1px; color: #fff; line-height: 1; }
+.plan-currency { font-size: 20px; color: var(--muted); font-weight: 300; }
+.plan-desc { font-size: 13px; color: var(--muted); margin-bottom: 24px; font-weight: 300; }
+.plan-divider { height: 1px; background: var(--border); margin: 20px 0; }
+.plan-features { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
+.plan-features li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 1.4; color: #b0b8cc; }
+.feat-icon {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--pc, var(--cyan));
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--bg); font-weight: 700; margin-top: 1px;
+}
+.feat-num { font-weight: 600; color: #fff; }
+.plan-btn {
+  width: 100%; padding: 14px; border-radius: 12px; border: none;
+  font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: all .25s; text-align: center; text-decoration: none; display: block;
+}
+.btn-solid { background: var(--pc, var(--cyan)); color: var(--bg); }
+.btn-solid:hover { opacity: .85; transform: translateY(-2px); }
+.btn-ghost { background: transparent; color: var(--pc, var(--cyan)); border: 1.5px solid var(--pc, var(--cyan)); }
+.btn-ghost:hover { background: var(--pc, var(--cyan)); color: var(--bg); }
+
+/* MODELS */
+.models-section { padding: 100px 0; border-top: 1px solid var(--border); }
+.models-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 48px; flex-wrap: wrap; gap: 16px; }
+.filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.tab {
+  padding: 8px 18px; border-radius: 8px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--muted); font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 500; cursor: pointer; transition: all .2s;
+}
+.tab.active, .tab:hover { background: var(--surface2); border-color: var(--cyan); color: var(--cyan); }
+
+.models-table { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.table-header {
+  display: grid; grid-template-columns: 2fr 1.4fr 1fr 1fr 1fr;
+  padding: 14px 24px; background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+}
+.model-row {
+  display: grid; grid-template-columns: 2fr 1.4fr 1fr 1fr 1fr;
+  padding: 16px 24px; border-bottom: 1px solid var(--border);
+  align-items: center; transition: background .15s;
+}
+.model-row:last-child { border-bottom: none; }
+.model-row:hover { background: var(--surface2); }
+.model-info { display: flex; align-items: center; gap: 12px; }
+.model-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.model-name { font-weight: 600; font-size: 14px; color: #fff; }
+.model-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.model-company {
+  font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted);
+  background: var(--faint); padding: 3px 8px; border-radius: 4px; display: inline-block;
+}
+.model-price { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; color: var(--cyan); }
+.model-type-tag { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+.tag-photo { background: rgba(59,130,246,.15); color: #60a5fa; }
+.tag-video { background: rgba(240,180,41,.15); color: var(--gold); }
+.tag-chat  { background: rgba(0,232,216,.15); color: var(--cyan); }
+.per-1000 { font-family: 'DM Mono', monospace; font-size: 13px; color: #fff; font-weight: 500; }
+.per-1000 small { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+.category-row {
+  padding: 10px 24px; background: rgba(0,232,216,.03);
+  border-bottom: 1px solid var(--border);
+  font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan);
+}
+
+/* FOOTER */
+footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px; }
+.footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.footer-logo { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 3px; color: var(--muted); }
+.footer-text { font-size: 13px; color: var(--muted); font-family: 'DM Mono', monospace; }
+.footer-link { color: var(--cyan); text-decoration: none; }
+
+@media (max-width: 900px) { .plans { grid-template-columns: repeat(2,1fr); } .nav-links { display: none; } }
+@media (max-width: 560px) {
+  .plans { grid-template-columns: 1fr; }
+  .hero-stats { flex-wrap: wrap; }
+  .hero-stat { border-right: none !important; }
+  .table-header, .model-row { grid-template-columns: 1.5fr 1fr 1fr; }
+  .table-header div:nth-child(2), .model-row > div:nth-child(2),
+  .table-header div:nth-child(5), .model-row > div:nth-child(5) { display: none; }
+}
+</style>
 </head>
 <body>
 
-<h2>DaVinci OTIO Beat Cutter</h2>
-
-<form method="POST" action="/process" enctype="multipart/form-data">
-
-  <div>
-    <label>OTIO файл</label><br>
-    <input type="file" name="timeline" accept=".otio" required>
+<nav>
+  <div class="wrap nav-inner">
+    <div class="nav-logo">ElSpy AI</div>
+    <ul class="nav-links">
+      <li><a href="#pricing">Тарифы</a></li>
+      <li><a href="#models">Модели</a></li>
+      <li><a href="https://elspy.ai6700.com" class="nav-cta">Попробовать →</a></li>
+    </ul>
   </div>
+</nav>
 
-  <div>
-    <label>Музыка (MP3 / WAV)</label><br>
-    <input type="file" name="music" accept=".mp3,.wav" required>
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-badge">30+ нейросетей · один кабинет</div>
+    <h1>
+      <span class="line1">Все ИИ</span>
+      <span class="line2">в одном месте</span>
+    </h1>
+    <p class="hero-sub">Midjourney, GPT Image, Grok, Kling, Sora, Veo и ещё 25+ моделей — без подписок, платишь только за то что используешь</p>
+    <a href="https://elspy.ai6700.com" class="hero-btn">Начать генерировать →</a>
+    <br>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hero-stat-num">30+</div><div class="hero-stat-label">Моделей</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">~1₽</div><div class="hero-stat-label">За фото</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">0</div><div class="hero-stat-label">Подписок</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">24/7</div><div class="hero-stat-label">Доступ</div></div>
+    </div>
   </div>
+</section>
 
-  <div>
-    <label>FPS</label><br>
-    <input type="number" name="fps" value="25">
+<section class="pricing-section" id="pricing">
+  <div class="wrap">
+    <div class="pricing-header">
+      <div class="section-label">Пополнение баланса</div>
+      <div class="section-title">Тарифы</div>
+      <p class="section-sub">Пополни баланс один раз — генерируй любые модели. Остаток не сгорает.</p>
+    </div>
+    <div class="plans">
+
+      <div class="plan" style="--pc:#3b82f6">
+        <div class="plan-glow"></div>
+        <div class="plan-tier">Старт</div>
+        <div class="plan-name">Basic</div>
+        <div class="plan-price"><div class="plan-amount">1 000</div><div class="plan-currency">₽</div></div>
+        <div class="plan-desc">Попробовать все возможности платформы</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><div class="feat-icon" style="background:#3b82f6">✓</div><span><span class="feat-num">~600 фото</span> GPT Image, Grok, MJ</span></li>
+          <li><div class="feat-icon" style="background:#3b82f6">✓</div><span><span class="feat-num">~30 видео</span> Sora, Kling, Vidu</span></li>
+          <li><div class="feat-icon" style="background:#3b82f6">✓</div><span>Все 30+ моделей доступны</span></li>
+          <li><div class="feat-icon" style="background:#3b82f6">✓</div><span>Баланс не сгорает</span></li>
+        </ul>
+        <a href="https://elspy.ai6700.com" class="plan-btn" style="background:transparent;color:#3b82f6;border:1.5px solid #3b82f6">Пополнить</a>
+      </div>
+
+      <div class="plan featured" style="--pc:#00e8d8">
+        <div class="plan-glow"></div>
+        <div class="plan-badge">⭐ Хит</div>
+        <div class="plan-tier">Стандарт</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price"><div class="plan-amount">3 000</div><div class="plan-currency">₽</div></div>
+        <div class="plan-desc">Оптимально для регулярной работы</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><div class="feat-icon" style="background:#00e8d8">✓</div><span><span class="feat-num">~1 900 фото</span> через все модели</span></li>
+          <li><div class="feat-icon" style="background:#00e8d8">✓</div><span><span class="feat-num">~100 видео</span> Kling, Sora, Veo</span></li>
+          <li><div class="feat-icon" style="background:#00e8d8">✓</div><span>Nano Banana · Veo 3.1 · Kling 2.6</span></li>
+          <li><div class="feat-icon" style="background:#00e8d8">✓</div><span>Фото + Видео + Чат в одном</span></li>
+          <li><div class="feat-icon" style="background:#00e8d8">✓</div><span>Баланс не сгорает</span></li>
+        </ul>
+        <a href="https://elspy.ai6700.com" class="plan-btn" style="background:#00e8d8;color:#04060a">Пополнить</a>
+      </div>
+
+      <div class="plan" style="--pc:#a855f7">
+        <div class="plan-glow"></div>
+        <div class="plan-tier">Про</div>
+        <div class="plan-name">Elite</div>
+        <div class="plan-price"><div class="plan-amount">5 000</div><div class="plan-currency">₽</div></div>
+        <div class="plan-desc">Полный арсенал для профессионалов</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><div class="feat-icon" style="background:#a855f7">✓</div><span><span class="feat-num">~3 200 фото</span> 30+ моделей</span></li>
+          <li><div class="feat-icon" style="background:#a855f7">✓</div><span><span class="feat-num">~165 видео</span> высокого качества</span></li>
+          <li><div class="feat-icon" style="background:#a855f7">✓</div><span>Полный доступ ко всем моделям</span></li>
+          <li><div class="feat-icon" style="background:#a855f7">✓</div><span>Фото · Видео · Чат · Аудио</span></li>
+          <li><div class="feat-icon" style="background:#a855f7">✓</div><span>Баланс не сгорает</span></li>
+        </ul>
+        <a href="https://elspy.ai6700.com" class="plan-btn" style="background:transparent;color:#a855f7;border:1.5px solid #a855f7">Пополнить</a>
+      </div>
+
+      <div class="plan" style="--pc:#f0b429">
+        <div class="plan-glow"></div>
+        <div class="plan-tier">Максимум</div>
+        <div class="plan-name">Max</div>
+        <div class="plan-price"><div class="plan-amount">10 000</div><div class="plan-currency">₽</div></div>
+        <div class="plan-desc">Максимум генераций без ограничений</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><div class="feat-icon" style="background:#f0b429">✓</div><span><span class="feat-num">~6 500 фото</span> любые модели</span></li>
+          <li><div class="feat-icon" style="background:#f0b429">✓</div><span><span class="feat-num">~330 видео</span> все форматы</span></li>
+          <li><div class="feat-icon" style="background:#f0b429">✓</div><span>Приоритет к новым моделям</span></li>
+          <li><div class="feat-icon" style="background:#f0b429">✓</div><span>Максимальный запас генераций</span></li>
+          <li><div class="feat-icon" style="background:#f0b429">✓</div><span>Баланс не сгорает</span></li>
+        </ul>
+        <a href="https://elspy.ai6700.com" class="plan-btn" style="background:transparent;color:#f0b429;border:1.5px solid #f0b429">Пополнить</a>
+      </div>
+
+    </div>
   </div>
+</section>
 
-  <hr>
+<section class="models-section" id="models">
+  <div class="wrap">
+    <div class="models-header">
+      <div>
+        <div class="section-label">Все модели</div>
+        <div class="section-title">Список моделей</div>
+        <p class="section-sub" style="margin-bottom:0">Цены за 1 генерацию · курс юаня ~12 ₽</p>
+      </div>
+      <div class="filter-tabs">
+        <button class="tab active" onclick="filterModels('all',this)">Все</button>
+        <button class="tab" onclick="filterModels('photo',this)">📸 Фото</button>
+        <button class="tab" onclick="filterModels('video',this)">🎬 Видео</button>
+        <button class="tab" onclick="filterModels('chat',this)">💬 Чат</button>
+      </div>
+    </div>
+    <div class="models-table" id="modelsTable">
+      <div class="table-header">
+        <div>Модель</div><div>Компания</div><div>Тип</div><div>Цена / ген.</div><div>За 1000 ₽</div>
+      </div>
 
-  <h3>Автомонтаж под музыку</h3>
+      <div class="category-row" data-cat="photo">📸 Генерация изображений</div>
+      <div class="model-row" data-type="photo"><div class="model-info"><div class="model-dot" style="background:#10b981"></div><div><div class="model-name">GPT Image 1.5</div><div class="model-desc">Лучший для понимания промптов</div></div></div><div><span class="model-company">OpenAI</span></div><div><span class="model-type-tag tag-photo">Фото</span></div><div class="model-price">~1 ₽</div><div class="per-1000">~638 фото<small>рекорд доступности</small></div></div>
+      <div class="model-row" data-type="photo"><div class="model-info"><div class="model-dot" style="background:#3b82f6"></div><div><div class="model-name">Grok 4.2 Image</div><div class="model-desc">Улучшенная семантика, 19 размеров</div></div></div><div><span class="model-company">xAI</span></div><div><span class="model-type-tag tag-photo">Фото</span></div><div class="model-price">~1.5 ₽</div><div class="per-1000">~692 фото</div></div>
+      <div class="model-row" data-type="photo"><div class="model-info"><div class="model-dot" style="background:#6366f1"></div><div><div class="model-name">Grok 4.1 Image</div><div class="model-desc">Генерация + редактирование, 2 фото</div></div></div><div><span class="model-company">xAI</span></div><div><span class="model-type-tag tag-photo">Фото</span></div><div class="model-price">~1.2 ₽</div><div class="per-1000">~550 фото</div></div>
+      <div class="model-row" data-type="photo"><div class="model-info"><div class="model-dot" style="background:#f59e0b"></div><div><div class="model-name">Midjourney</div><div class="model-desc">Топ кино-арт и иллюстрации</div></div></div><div><span class="model-company">Midjourney</span></div><div><span class="model-type-tag tag-photo">Фото</span></div><div class="model-price">~2.4 ₽</div><div class="per-1000">~415 фото</div></div>
+      <div class="model-row" data-type="photo"><div class="model-info"><div class="model-dot" style="background:#ec4899"></div><div><div class="model-name">Nano Banana Pro</div><div class="model-desc">8K макро, лучший рендер текста 2025</div></div></div><div><span class="model-company">Google</span></div><div><span class="model-type-tag tag-photo">Фото</span></div><div class="model-price">~4.8 ₽</div><div class="per-1000">~208 фото</div></div>
+      <div class="model-row" data-type="photo"><div class="model-info"><div class="model-dot" style="background:#f97316"></div><div><div class="model-name">Nano Banana 2</div><div class="model-desc">Быстрая версия, поиск по изображениям</div></div></div><div><span class="model-company">Google</span></div><div><span class="model-type-tag tag-photo">Фото</span></div><div class="model-price">~1.4 ₽</div><div class="per-1000">~700 фото</div></div>
+      <div class="model-row" data-type="photo"><div class="model-info"><div class="model-dot" style="background:#14b8a6"></div><div><div class="model-name">Мечта 5.0</div><div class="model-desc">3K качество, слияние нескольких образов</div></div></div><div><span class="model-company">ByteDance</span></div><div><span class="model-type-tag tag-photo">Фото</span></div><div class="model-price">~2.3 ₽</div><div class="per-1000">~430 фото</div></div>
+      <div class="model-row" data-type="photo"><div class="model-info"><div class="model-dot" style="background:#06b6d4"></div><div><div class="model-name">Wanxiang 2.6</div><div class="model-desc">Перенос стиля, текст на фото</div></div></div><div><span class="model-company">Alibaba</span></div><div><span class="model-type-tag tag-photo">Фото</span></div><div class="model-price">~1.7 ₽</div><div class="per-1000">~590 фото</div></div>
+      <div class="model-row" data-type="photo"><div class="model-info"><div class="model-dot" style="background:#8b5cf6"></div><div><div class="model-name">Kling O1</div><div class="model-desc">10 референсов одновременно</div></div></div><div><span class="model-company">Kuaishou</span></div><div><span class="model-type-tag tag-photo">Фото</span></div><div class="model-price">~4 ₽</div><div class="per-1000">~250 фото</div></div>
+      <div class="model-row" data-type="photo"><div class="model-info"><div class="model-dot" style="background:#ef4444"></div><div><div class="model-name">Мечта 4.5</div><div class="model-desc">4K, детали лиц и текста</div></div></div><div><span class="model-company">ByteDance</span></div><div><span class="model-type-tag tag-photo">Фото</span></div><div class="model-price">~3.2 ₽</div><div class="per-1000">~310 фото</div></div>
 
-  <label>
-    <input type="checkbox" id="ae_enabled" checked>
-    Включить
-  </label>
+      <div class="category-row" data-cat="video">🎬 Генерация видео</div>
+      <div class="model-row" data-type="video"><div class="model-info"><div class="model-dot" style="background:#f0b429"></div><div><div class="model-name">Veo 3.1 4K</div><div class="model-desc">Google 4K — лучшая цена/качество</div></div></div><div><span class="model-company">Google</span></div><div><span class="model-type-tag tag-video">Видео</span></div><div class="model-price">~5.3 ₽</div><div class="per-1000">~188 видео 🔥</div></div>
+      <div class="model-row" data-type="video"><div class="model-info"><div class="model-dot" style="background:#22c55e"></div><div><div class="model-name">Seedance S2.0</div><div class="model-desc">ByteDance, быстрый и чёткий</div></div></div><div><span class="model-company">ByteDance</span></div><div><span class="model-type-tag tag-video">Видео</span></div><div class="model-price">~2.5 ₽/сек</div><div class="per-1000">~40 видео</div></div>
+      <div class="model-row" data-type="video"><div class="model-info"><div class="model-dot" style="background:#ef4444"></div><div><div class="model-name">Sora 2 Стандарт</div><div class="model-desc">OpenAI флагман видео</div></div></div><div><span class="model-company">OpenAI</span></div><div><span class="model-type-tag tag-video">Видео</span></div><div class="model-price">~30 ₽</div><div class="per-1000">~33 видео</div></div>
+      <div class="model-row" data-type="video"><div class="model-info"><div class="model-dot" style="background:#3b82f6"></div><div><div class="model-name">Grok Video 3</div><div class="model-desc">10 секунд, xAI</div></div></div><div><span class="model-company">xAI</span></div><div><span class="model-type-tag tag-video">Видео</span></div><div class="model-price">~35 ₽</div><div class="per-1000">~28 видео</div></div>
+      <div class="model-row" data-type="video"><div class="model-info"><div class="model-dot" style="background:#06b6d4"></div><div><div class="model-name">Vidu Q3</div><div class="model-desc">Высокое качество</div></div></div><div><span class="model-company">Vidu</span></div><div><span class="model-type-tag tag-video">Видео</span></div><div class="model-price">~26 ₽</div><div class="per-1000">~38 видео</div></div>
+      <div class="model-row" data-type="video"><div class="model-info"><div class="model-dot" style="background:#a855f7"></div><div><div class="model-name">Мечта 3.5 Pro</div><div class="model-desc">ByteDance видео генерация</div></div></div><div><span class="model-company">ByteDance</span></div><div><span class="model-type-tag tag-video">Видео</span></div><div class="model-price">~4 ₽/сек</div><div class="per-1000">~25 видео</div></div>
+      <div class="model-row" data-type="video"><div class="model-info"><div class="model-dot" style="background:#f97316"></div><div><div class="model-name">Kling 2.6 Pro</div><div class="model-desc">Kuaishou топ-модель</div></div></div><div><span class="model-company">Kuaishou</span></div><div><span class="model-type-tag tag-video">Видео</span></div><div class="model-price">~53 ₽</div><div class="per-1000">~18 видео</div></div>
+      <div class="model-row" data-type="video"><div class="model-info"><div class="model-dot" style="background:#14b8a6"></div><div><div class="model-name">Wanxiang 2.6 Видео</div><div class="model-desc">6–15 секунд, первый кадр</div></div></div><div><span class="model-company">Alibaba</span></div><div><span class="model-type-tag tag-video">Видео</span></div><div class="model-price">~15–38 ₽</div><div class="per-1000">~26–66 видео</div></div>
 
-  <div>
-    Длина клипа (сек):<br>
-    min <input type="number" id="cd_min" value="0.5" step="0.1">
-    max <input type="number" id="cd_max" value="1.9" step="0.1">
+      <div class="category-row" data-cat="chat">💬 Чат-модели</div>
+      <div class="model-row" data-type="chat"><div class="model-info"><div class="model-dot" style="background:#10b981"></div><div><div class="model-name">GPT-5.4 Pro</div><div class="model-desc">Флагман OpenAI</div></div></div><div><span class="model-company">OpenAI</span></div><div><span class="model-type-tag tag-chat">Чат</span></div><div class="model-price">По токенам</div><div class="per-1000">—</div></div>
+      <div class="model-row" data-type="chat"><div class="model-info"><div class="model-dot" style="background:#f97316"></div><div><div class="model-name">Claude Opus 4.6</div><div class="model-desc">Самый умный Anthropic</div></div></div><div><span class="model-company">Anthropic</span></div><div><span class="model-type-tag tag-chat">Чат</span></div><div class="model-price">По токенам</div><div class="per-1000">—</div></div>
+      <div class="model-row" data-type="chat"><div class="model-info"><div class="model-dot" style="background:#f97316"></div><div><div class="model-name">Claude Sonnet 4.6</div><div class="model-desc">Баланс скорость / интеллект</div></div></div><div><span class="model-company">Anthropic</span></div><div><span class="model-type-tag tag-chat">Чат</span></div><div class="model-price">По токенам</div><div class="per-1000">—</div></div>
+      <div class="model-row" data-type="chat"><div class="model-info"><div class="model-dot" style="background:#4285f4"></div><div><div class="model-name">Gemini 3 Pro</div><div class="model-desc">Google флагман</div></div></div><div><span class="model-company">Google</span></div><div><span class="model-type-tag tag-chat">Чат</span></div><div class="model-price">По токенам</div><div class="per-1000">—</div></div>
+      <div class="model-row" data-type="chat"><div class="model-info"><div class="model-dot" style="background:#a855f7"></div><div><div class="model-name">DeepSeek v3.2</div><div class="model-desc">Лучший открытый чат</div></div></div><div><span class="model-company">DeepSeek</span></div><div><span class="model-type-tag tag-chat">Чат</span></div><div class="model-price">По токенам</div><div class="per-1000">—</div></div>
+      <div class="model-row" data-type="chat"><div class="model-info"><div class="model-dot" style="background:#ef4444"></div><div><div class="model-name">Grok 4.2</div><div class="model-desc">xAI последней версии</div></div></div><div><span class="model-company">xAI</span></div><div><span class="model-type-tag tag-chat">Чат</span></div><div class="model-price">По токенам</div><div class="per-1000">—</div></div>
+      <div class="model-row" data-type="chat"><div class="model-info"><div class="model-dot" style="background:#06b6d4"></div><div><div class="model-name">Doubao Seed 2.0 Pro</div><div class="model-desc">ByteDance чат</div></div></div><div><span class="model-company">ByteDance</span></div><div><span class="model-type-tag tag-chat">Чат</span></div><div class="model-price">По токенам</div><div class="per-1000">—</div></div>
+
+    </div>
   </div>
+</section>
 
-  <div>
-    Shuffle (%):
-    <input type="number" id="shuffle" value="0" min="0" max="100">
+<footer>
+  <div class="wrap">
+    <div class="footer-inner">
+      <div class="footer-logo">ElSpy AI</div>
+      <div class="footer-text">Агрегатор топовых ИИ моделей · <a href="https://elspy.ai6700.com" class="footer-link">elspy.ai6700.com</a></div>
+    </div>
   </div>
-
-  <hr>
-
-  <h3>Ретайм</h3>
-
-  <label>
-    <input type="checkbox" id="rt_enabled">
-    Включить ретайм
-  </label>
-
-  <div>
-    Вероятность ретайма (%):
-    <input type="number" id="rt_prob" value="0" min="0" max="100">
-  </div>
-
-  <!-- СЮДА ПОЛОЖИМ JSON -->
-  <input type="hidden" name="settings" id="settings_json">
-
-  <br><br>
-  <button type="submit">Смонтировать и скачать OTIO</button>
-
-</form>
+</footer>
 
 <script>
-  function bindRange(id, outId) {
-    const el = document.getElementById(id);
-    const out = document.getElementById(outId);
-    const upd = () => out.textContent = el.value;
-    el.addEventListener('input', upd);
-    upd();
-  }
-
-  ["cd_min","cd_max","ct_min","ct_max","shuffle","shuffle_long","rt_prob","rt_min","rt_max"].forEach(id => {
-    bindRange(id, id + "_v");
+function filterModels(type, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.model-row').forEach(r => {
+    r.style.display = (type === 'all' || r.dataset.type === type) ? '' : 'none';
   });
+  document.querySelectorAll('.category-row').forEach(c => {
+    c.style.display = (type === 'all' || c.dataset.cat === type) ? '' : 'none';
+  });
+}
 
-  function clampPair(minEl, maxEl) {
-    const a = parseFloat(minEl.value);
-    const b = parseFloat(maxEl.value);
-    if (a > b) {
-      // подравниваем: двигаем MAX к MIN
-      maxEl.value = String(a);
-      const out = document.getElementById(maxEl.id + "_v");
-      if (out) out.textContent = maxEl.value;
+// Scroll reveal
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.style.opacity = '1';
+      e.target.style.transform = 'translateY(0)';
     }
-  }
-
-  // автоподравнивание при движении ползунков
-  cd_min.addEventListener("input", () => clampPair(cd_min, cd_max));
-  cd_max.addEventListener("input", () => clampPair(cd_min, cd_max));
-  ct_min.addEventListener("input", () => clampPair(ct_min, ct_max));
-  ct_max.addEventListener("input", () => clampPair(ct_min, ct_max));
-  rt_min.addEventListener("input", () => clampPair(rt_min, rt_max));
-  rt_max.addEventListener("input", () => clampPair(rt_min, rt_max));
-
-  document.getElementById("beatForm").addEventListener("submit", () => {
-    // перед отправкой ещё раз гарантируем пары
-    clampPair(cd_min, cd_max);
-    clampPair(ct_min, ct_max);
-    clampPair(rt_min, rt_max);
-
-    const settings = {
-      auto_edit_to_music_1: {
-        f_enabled: ae_enabled.checked,
-        clip_duration: [parseFloat(cd_min.value), parseFloat(cd_max.value)],
-        clip_transient: [parseFloat(ct_min.value), parseFloat(ct_max.value)],
-        audio_lib: audio_lib.value,
-        if_short_clip: if_short.value,
-        if_long_clip: if_long.value,
-        shuffle: parseInt(shuffle.value, 10),
-        shuffle_long: parseInt(shuffle_long.value, 10),
-        video_track_name: "vid1",
-        audio_track_name: "aud1"
-      },
-      retime_simple: {
-        f_enabled: rt_enabled.checked,
-        retime_prob: parseInt(rt_prob.value, 10),
-        retime_factor: [parseInt(rt_min.value, 10), parseInt(rt_max.value, 10)],
-        algorithm: rt_algo.value,
-        skip_exist: skip_exist.checked,
-        apply_to_audio: apply_audio.checked,
-        video_track_name: "vid1",
-        audio_track_name: "aud1"
-      }
-    };
-
-    settings_json.value = JSON.stringify(settings);
   });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.plan').forEach((el, i) => {
+  el.style.cssText += 'opacity:0;transform:translateY(40px);transition:opacity .6s ease ' + (i * 0.1) + 's, transform .6s ease ' + (i * 0.1) + 's';
+  obs.observe(el);
+});
 </script>
-
-
 </body>
 </html>
