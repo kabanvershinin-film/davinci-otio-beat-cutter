@@ -660,80 +660,9 @@ h1 .line2 {
 .sv.v { grid-column: span 1; grid-row: span 2; }
 .sv.sq { grid-column: span 2; grid-row: span 2; }
 
-/* play icon on hover */
-.sv-play-icon {
-  position: absolute;
-  inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0;
-  transition: opacity .25s;
-  z-index: 3;
-  pointer-events: none;
-}
-.sv:hover .sv-play-icon { opacity: 1; }
-.sv-play-icon-inner {
-  width: 52px; height: 52px;
-  background: rgba(0,232,216,0.25);
-  border: 2px solid rgba(0,232,216,0.8);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  backdrop-filter: blur(8px);
-}
-.sv-play-icon-inner svg { fill: #fff; width: 20px; height: 20px; margin-left: 3px; }
 
-/* VIDEO MODAL */
-.video-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: rgba(4,6,10,0.92);
-  backdrop-filter: blur(16px);
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .3s ease;
-}
-.video-modal.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-.video-modal-inner {
-  position: relative;
-  max-width: 90vw;
-  max-height: 90vh;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 0 80px rgba(0,232,216,0.2), 0 40px 100px rgba(0,0,0,0.6);
-  border: 1px solid rgba(0,232,216,0.2);
-  transform: scale(0.92);
-  transition: transform .3s ease;
-}
-.video-modal.active .video-modal-inner {
-  transform: scale(1);
-}
-.video-modal-inner video {
-  display: block;
-  max-width: 90vw;
-  max-height: 85vh;
-  width: auto;
-  height: auto;
-}
-.video-modal-close {
-  position: absolute;
-  top: 14px; right: 14px;
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  background: rgba(4,6,10,0.7);
-  border: 1px solid rgba(255,255,255,0.15);
-  color: #fff;
-  font-size: 18px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  z-index: 10;
-  transition: background .2s;
-  backdrop-filter: blur(8px);
-}
-.video-modal-close:hover { background: rgba(0,232,216,0.3); }
+
+
 
 /* FOOTER */
 footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px; }
@@ -804,10 +733,6 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px;
     <div class="sv h"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/a9d69ec0-1e93-46df-8629-dcc1e46ca151/ver6.mp4" type="video/mp4"></video></div></div>
   </div>
 </section>
-
-    <video id="modalVideo" controls autoplay playsinline style="display:block;max-width:90vw;max-height:85vh;"></video>
-  </div>
-</div>
 
 <!-- ============================================================
      ВСТРЕЧАЙТЕ SEEDANCE S2.0
