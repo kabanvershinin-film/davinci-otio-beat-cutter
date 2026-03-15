@@ -660,6 +660,81 @@ h1 .line2 {
 .sv.v { grid-column: span 1; grid-row: span 2; }
 .sv.sq { grid-column: span 2; grid-row: span 2; }
 
+/* play icon on hover */
+.sv-play-icon {
+  position: absolute;
+  inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity .25s;
+  z-index: 3;
+  pointer-events: none;
+}
+.sv:hover .sv-play-icon { opacity: 1; }
+.sv-play-icon-inner {
+  width: 52px; height: 52px;
+  background: rgba(0,232,216,0.25);
+  border: 2px solid rgba(0,232,216,0.8);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(8px);
+}
+.sv-play-icon-inner svg { fill: #fff; width: 20px; height: 20px; margin-left: 3px; }
+
+/* VIDEO MODAL */
+.video-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(4,6,10,0.92);
+  backdrop-filter: blur(16px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s ease;
+}
+.video-modal.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.video-modal-inner {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 0 80px rgba(0,232,216,0.2), 0 40px 100px rgba(0,0,0,0.6);
+  border: 1px solid rgba(0,232,216,0.2);
+  transform: scale(0.92);
+  transition: transform .3s ease;
+}
+.video-modal.active .video-modal-inner {
+  transform: scale(1);
+}
+.video-modal-inner video {
+  display: block;
+  max-width: 90vw;
+  max-height: 85vh;
+  width: auto;
+  height: auto;
+}
+.video-modal-close {
+  position: absolute;
+  top: 14px; right: 14px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(4,6,10,0.7);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: background .2s;
+  backdrop-filter: blur(8px);
+}
+.video-modal-close:hover { background: rgba(0,232,216,0.3); }
+
 /* FOOTER */
 footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px; }
 .footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
@@ -715,22 +790,28 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px;
   </div>
 
   <div class="showcase-grid">
-    <!-- ряд 1-2 -->
-    <div class="sv v"><video autoplay muted loop playsinline><source src="https://31p5glwzd1.ucarecd.net/24eafba8-9ca1-4988-ae9b-421ae90be428/ver1.mp4" type="video/mp4"></video></div>
-    <div class="sv h"><video autoplay muted loop playsinline><source src="https://31p5glwzd1.ucarecd.net/e43e3654-0de2-4086-b1f2-526b38132d8e/gor1.mp4" type="video/mp4"></video></div>
-    <div class="sv h"><video autoplay muted loop playsinline><source src="https://31p5glwzd1.ucarecd.net/ef2a5fa6-c0c3-42ca-bcbc-9b2336daacb4/gor2.mp4" type="video/mp4"></video></div>
-    <div class="sv v"><video autoplay muted loop playsinline><source src="https://31p5glwzd1.ucarecd.net/2bda1162-f267-4b1d-a558-2f225e6138c6/ver2.mp4" type="video/mp4"></video></div>
-    <div class="sv h"><video autoplay muted loop playsinline><source src="https://31p5glwzd1.ucarecd.net/8443ef00-6330-4b3d-8daa-60dab3da752f/gor3.mp4" type="video/mp4"></video></div>
-    <div class="sv h"><video autoplay muted loop playsinline><source src="https://31p5glwzd1.ucarecd.net/18ecf550-f427-4c89-a9da-7b926aede800/gor4.mp4" type="video/mp4"></video></div>
-    <!-- ряд 3-4 -->
-    <div class="sv h"><video autoplay muted loop playsinline><source src="https://31p5glwzd1.ucarecd.net/1f9bbd60-1398-4dbb-86e7-8f421c6cb237/gor5.mp4" type="video/mp4"></video></div>
-    <div class="sv v"><video autoplay muted loop playsinline><source src="https://31p5glwzd1.ucarecd.net/0a848788-9e5d-4fcf-bea6-d8b2c492261c/ver3.mp4" type="video/mp4"></video></div>
-    <div class="sv h"><video autoplay muted loop playsinline><source src="https://31p5glwzd1.ucarecd.net/0f36710f-4c49-47ee-9718-315888db6fac/gor6.mp4" type="video/mp4"></video></div>
-    <div class="sv v"><video autoplay muted loop playsinline><source src="https://31p5glwzd1.ucarecd.net/30627092-2ebd-4ca0-ab67-84e9b34a6fc3/ver4.mp4" type="video/mp4"></video></div>
-    <div class="sv h"><video autoplay muted loop playsinline><source src="https://31p5glwzd1.ucarecd.net/31ccb17e-16f0-472e-8cc9-a7e97376cc42/ver5.mp4" type="video/mp4"></video></div>
-    <div class="sv h"><video autoplay muted loop playsinline><source src="https://31p5glwzd1.ucarecd.net/a9d69ec0-1e93-46df-8629-dcc1e46ca151/ver6.mp4" type="video/mp4"></video></div>
+    <div class="sv v" onclick="openModal(this)"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/24eafba8-9ca1-4988-ae9b-421ae90be428/ver1.mp4" type="video/mp4"></video><div class="sv-play-icon"><div class="sv-play-icon-inner"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div></div>
+    <div class="sv h" onclick="openModal(this)"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/e43e3654-0de2-4086-b1f2-526b38132d8e/gor1.mp4" type="video/mp4"></video><div class="sv-play-icon"><div class="sv-play-icon-inner"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div></div>
+    <div class="sv h" onclick="openModal(this)"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/ef2a5fa6-c0c3-42ca-bcbc-9b2336daacb4/gor2.mp4" type="video/mp4"></video><div class="sv-play-icon"><div class="sv-play-icon-inner"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div></div>
+    <div class="sv v" onclick="openModal(this)"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/2bda1162-f267-4b1d-a558-2f225e6138c6/ver2.mp4" type="video/mp4"></video><div class="sv-play-icon"><div class="sv-play-icon-inner"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div></div>
+    <div class="sv h" onclick="openModal(this)"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/8443ef00-6330-4b3d-8daa-60dab3da752f/gor3.mp4" type="video/mp4"></video><div class="sv-play-icon"><div class="sv-play-icon-inner"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div></div>
+    <div class="sv h" onclick="openModal(this)"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/18ecf550-f427-4c89-a9da-7b926aede800/gor4.mp4" type="video/mp4"></video><div class="sv-play-icon"><div class="sv-play-icon-inner"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div></div>
+    <div class="sv h" onclick="openModal(this)"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/1f9bbd60-1398-4dbb-86e7-8f421c6cb237/gor5.mp4" type="video/mp4"></video><div class="sv-play-icon"><div class="sv-play-icon-inner"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div></div>
+    <div class="sv v" onclick="openModal(this)"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/0a848788-9e5d-4fcf-bea6-d8b2c492261c/ver3.mp4" type="video/mp4"></video><div class="sv-play-icon"><div class="sv-play-icon-inner"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div></div>
+    <div class="sv h" onclick="openModal(this)"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/0f36710f-4c49-47ee-9718-315888db6fac/gor6.mp4" type="video/mp4"></video><div class="sv-play-icon"><div class="sv-play-icon-inner"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div></div>
+    <div class="sv v" onclick="openModal(this)"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/30627092-2ebd-4ca0-ab67-84e9b34a6fc3/ver4.mp4" type="video/mp4"></video><div class="sv-play-icon"><div class="sv-play-icon-inner"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div></div>
+    <div class="sv h" onclick="openModal(this)"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/31ccb17e-16f0-472e-8cc9-a7e97376cc42/ver5.mp4" type="video/mp4"></video><div class="sv-play-icon"><div class="sv-play-icon-inner"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div></div>
+    <div class="sv h" onclick="openModal(this)"><video autoplay muted loop playsinline><source src="https://0084d8136e17a097b75f.ucr.io/a9d69ec0-1e93-46df-8629-dcc1e46ca151/ver6.mp4" type="video/mp4"></video><div class="sv-play-icon"><div class="sv-play-icon-inner"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div></div>
   </div>
 </section>
+
+<!-- VIDEO MODAL -->
+<div class="video-modal" id="videoModal" onclick="closeModalOutside(event)">
+  <div class="video-modal-inner">
+    <div class="video-modal-close" onclick="closeModal()">✕</div>
+    <video id="modalVideo" controls autoplay playsinline style="display:block;max-width:90vw;max-height:85vh;"></video>
+  </div>
+</div>
 
 <!-- ============================================================
      ВСТРЕЧАЙТЕ SEEDANCE S2.0
@@ -895,7 +976,7 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px;
             <!-- Slide 1 -->
             <div class="seedance-slide active" data-index="0">
               <video autoplay muted loop playsinline>
-                <source src="https://31p5glwzd1.ucarecd.net/e43e3654-0de2-4086-b1f2-526b38132d8e/gor1.mp4" type="video/mp4">
+                <source src="https://0084d8136e17a097b75f.ucr.io/e43e3654-0de2-4086-b1f2-526b38132d8e/gor1.mp4" type="video/mp4">
               </video>
               <div class="slide-play-overlay hidden">
                 <div class="play-btn-circle">
@@ -907,7 +988,7 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px;
             <!-- Slide 2 -->
             <div class="seedance-slide" data-index="1">
               <video muted loop playsinline>
-                <source src="https://31p5glwzd1.ucarecd.net/ef2a5fa6-c0c3-42ca-bcbc-9b2336daacb4/gor2.mp4" type="video/mp4">
+                <source src="https://0084d8136e17a097b75f.ucr.io/ef2a5fa6-c0c3-42ca-bcbc-9b2336daacb4/gor2.mp4" type="video/mp4">
               </video>
               <div class="slide-play-overlay">
                 <div class="play-btn-circle">
@@ -919,7 +1000,7 @@ footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px;
             <!-- Slide 3 -->
             <div class="seedance-slide" data-index="2">
               <video muted loop playsinline>
-                <source src="https://31p5glwzd1.ucarecd.net/8443ef00-6330-4b3d-8daa-60dab3da752f/gor3.mp4" type="video/mp4">
+                <source src="https://0084d8136e17a097b75f.ucr.io/8443ef00-6330-4b3d-8daa-60dab3da752f/gor3.mp4" type="video/mp4">
               </video>
               <div class="slide-play-overlay">
                 <div class="play-btn-circle">
@@ -1251,6 +1332,34 @@ document.querySelectorAll('.plan').forEach((el, i) => {
 document.querySelectorAll('.seedance-left, .seedance-right').forEach((el, i) => {
   el.style.cssText += 'opacity:0;transform:translateY(30px);transition:opacity .7s ease ' + (i * 0.15) + 's, transform .7s ease ' + (i * 0.15) + 's';
   obs.observe(el);
+});
+
+// ---- Video Modal ----
+function openModal(cell) {
+  const src = cell.querySelector('source').src;
+  const modal = document.getElementById('videoModal');
+  const modalVideo = document.getElementById('modalVideo');
+  modalVideo.src = src;
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+  modalVideo.play().catch(() => {});
+}
+
+function closeModal() {
+  const modal = document.getElementById('videoModal');
+  const modalVideo = document.getElementById('modalVideo');
+  modal.classList.remove('active');
+  modalVideo.pause();
+  modalVideo.src = '';
+  document.body.style.overflow = '';
+}
+
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('videoModal')) closeModal();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
 });
 </script>
 
