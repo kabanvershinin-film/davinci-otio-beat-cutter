@@ -1329,33 +1329,6 @@ document.querySelectorAll('.seedance-left, .seedance-right').forEach((el, i) => 
   el.style.cssText += 'opacity:0;transform:translateY(30px);transition:opacity .7s ease ' + (i * 0.15) + 's, transform .7s ease ' + (i * 0.15) + 's';
   obs.observe(el);
 });
-
-      }
-      videoObserver.unobserve(video);
-    }
-  });
-}, { rootMargin: '200px' });
-
-document.querySelectorAll('.sv video[data-src]').forEach(v => videoObserver.observe(v));
-
-}
-
-function closeModal() {
-  const modal = document.getElementById('videoModal');
-  const modalVideo = document.getElementById('modalVideo');
-  modal.classList.remove('active');
-  modalVideo.pause();
-  modalVideo.src = '';
-  document.body.style.overflow = '';
-}
-
-function closeModalOutside(e) {
-  if (e.target === document.getElementById('videoModal')) closeModal();
-}
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
-});
 </script>
 
 </body>
